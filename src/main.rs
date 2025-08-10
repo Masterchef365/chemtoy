@@ -1,4 +1,4 @@
-use std::{collections::HashMap, num::NonZeroUsize};
+use std::collections::HashMap;
 
 use egui::DragValue;
 
@@ -102,12 +102,16 @@ impl TemplateApp {
 
         let elements = vec![
             Element {
-                mass: 1.0,
+                mass: 1.008,
                 symbol: "H".into(),
+            },
+            Element {
+                mass: 15.999,
+                symbol: "O".into(),
             },
         ];
 
-        let componds = vec![
+        let compounds = vec![
         ];
 
         let chem = ChemicalWorld::from_laws(Laws {
@@ -115,7 +119,7 @@ impl TemplateApp {
             compounds,
         });
 
-        Self { save_data }
+        Self { chem }
     }
 }
 
@@ -138,7 +142,7 @@ impl eframe::App for TemplateApp {
 struct ElementId(pub usize);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct CompoundId(usize);
+struct CompoundId(pub usize);
 
 struct Laws {
     elements: Vec<Element>,
@@ -151,7 +155,8 @@ struct Element {
 }
 
 struct Compound {
-    formula: HashMap<ElementId, NonZeroUsize>,
+    name: String,
+    formula: HashMap<ElementId, usize>,
     charge: i32,
     std_free_energy: f32,
 }
@@ -161,6 +166,7 @@ struct Derivations {
     reactions: HashMap<(CompoundId, CompoundId), ProductSet>,
 }
 
+/// Product set. Sorted by total_std_free_energy.
 struct ProductSet(Vec<Products>);
 
 struct Products {
@@ -173,3 +179,49 @@ struct ChemicalWorld {
     deriv: Derivations,
 }
 
+impl Element {
+    pub fn new(symbol: &str, mass: f32) -> Self {
+        Self {
+            symbol: symbol.to_string(),
+            mass,
+        }
+    }
+}
+
+impl Compound {
+    pub fn new(name: &str, charge: i32, std_free_energy: f32, formula: &[(ElementId, usize)]) -> Self {
+        Self {
+            name: name.to_string(),
+            charge,
+            std_free_energy,
+            formula: formula.iter().copied().collect(),
+        }
+    }
+
+    pub fn monoatomic(element: &Element, id: ElementId) -> Self {
+        Self::new(&element.symbol, 0, 0.0, &[(id, 1)])
+    }
+
+    pub fn with_charge(mut self, charge: i32) -> Compound {
+        self.charge = charge;
+        self
+    }
+}
+
+impl ChemicalWorld {
+    pub fn from_laws(laws: Laws) -> Self {
+        Self {
+            deriv: Derivations::from_laws(&laws),
+            laws,
+        }
+    }
+}
+
+impl Derivations {
+    pub fn from_laws(laws: &Laws) -> Self {
+        Self {
+            reactions: todo!(),
+            decompositions: todo!(),
+        }
+    }
+}
