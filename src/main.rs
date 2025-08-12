@@ -207,15 +207,14 @@ impl Sim {
         // Build a map for the collisions
 
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let mut accel = QueryAccelerator::new(points, cfg.particle_radius);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius);
 
-        for i in 0..particles.len() {
+        for i in 0..self.particles.len() {
             for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                let p1 = self.particles[i];
-                let p2 = self.particles[neighbor];
-                let m1 = chem.laws.compounds[p1.compound];
-                let (v1, v2) = elastic_collision(p1.compound, v1, m2, v2);
-                self.particles[i].vel
+                let [p1, p2] = &mut self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+                let m1 = chem.laws.compounds[p1.compound].mass;
+                let m2 = chem.laws.compounds[p2.compound].mass;
+                (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
             }
         }
     }

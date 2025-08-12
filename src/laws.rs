@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+type Formula = HashMap<ElementId, usize>;
+
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ElementId(usize);
 
@@ -18,9 +20,10 @@ pub struct Element {
 
 pub struct Compound {
     pub name: String,
-    pub formula: HashMap<ElementId, usize>,
+    pub formula: Formula,
     pub charge: i32,
     pub std_free_energy: f32,
+    pub mass: f32,
 }
 
 pub struct Derivations {
@@ -67,12 +70,16 @@ impl Compound {
         charge: i32,
         std_free_energy: f32,
         formula: &[(ElementId, usize)],
+        elements: &Elements,
     ) -> Self {
+        let formula: Formula = formula.iter().copied().collect();
+
         Self {
             name: name.to_string(),
             charge,
             std_free_energy,
-            formula: formula.iter().copied().collect(),
+            mass: calculate_formula_mass(&formula, elements),
+            formula,
         }
     }
 }
@@ -125,3 +132,9 @@ impl std::ops::Index<CompoundId> for Compounds {
     }
 }
 
+fn calculate_formula_mass(formula: &Formula, elements: &Elements) -> f32 {
+    formula
+        .iter()
+        .map(|(element, n)| *n as f32 * elements[*element].mass)
+        .sum()
+}
