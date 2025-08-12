@@ -100,18 +100,34 @@ impl TemplateApp {
             .unwrap_or_default();
         */
 
-        let elements = vec![
-            Element {
-                mass: 1.008,
-                symbol: "H".into(),
-            },
-            Element {
-                mass: 15.999,
-                symbol: "O".into(),
-            },
-        ];
+        let mut elements = Elements::default();
+
+        let hydrogen = elements.push(Element {
+            mass: 1.008,
+            symbol: "H".into(),
+        });
+        let oxygen = elements.push(Element {
+            mass: 15.999,
+            symbol: "O".into(),
+        });
 
         let compounds = vec![
+            Compound::new("H₂", 1, 0.0, &[(hydrogen, 2)]),
+            Compound::new("H⁻", -1, 132.282, &[(hydrogen, 1)]),
+            Compound::new("H", 0, 203.278, &[(hydrogen, 1)]),
+            //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
+            //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
+
+            Compound::new("O₂", 0, 0.0, &[(hydrogen, 2)]),
+            Compound::new("O⁻", -1, 91.638, &[(hydrogen, 1)]),
+            Compound::new("O", 0, 231.736, &[(hydrogen, 1)]),
+            //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
+            //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
+
+            Compound::new("OH⁻", -1, -138.698, &[(hydrogen, 1), (oxygen, 1)]),
+            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)]),
+            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)]),
+            Compound::new("H₂O₂", 0, -105.445, &[(hydrogen, 2), (oxygen, 2)]),
         ];
 
         let chem = ChemicalWorld::from_laws(Laws {
@@ -133,19 +149,18 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-        });
+        egui::CentralPanel::default().show(ctx, |ui| {});
     }
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct ElementId(pub usize);
+struct ElementId(usize);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct CompoundId(pub usize);
+struct CompoundId(usize);
 
 struct Laws {
-    elements: Vec<Element>,
+    elements: Elements,
     compounds: Vec<Compound>,
 }
 
@@ -162,7 +177,11 @@ struct Compound {
 }
 
 struct Derivations {
+    /// For each compound, which other sets of compounds could be formed?
     decompositions: HashMap<CompoundId, ProductSet>,
+    /// Reverse of decompositions, but for combinations of only two compounds.
+    /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
+    /// so that there are no redundant indices.
     reactions: HashMap<(CompoundId, CompoundId), ProductSet>,
 }
 
@@ -170,7 +189,8 @@ struct Derivations {
 struct ProductSet(Vec<Products>);
 
 struct Products {
-    compounds: Vec<CompoundId>,
+    /// How many of each compound (238099, 2) -> 2 H2O
+    compounds: HashMap<CompoundId, usize>,
     total_std_free_energy: f32,
 }
 
@@ -189,22 +209,18 @@ impl Element {
 }
 
 impl Compound {
-    pub fn new(name: &str, charge: i32, std_free_energy: f32, formula: &[(ElementId, usize)]) -> Self {
+    pub fn new(
+        name: &str,
+        charge: i32,
+        std_free_energy: f32,
+        formula: &[(ElementId, usize)],
+    ) -> Self {
         Self {
             name: name.to_string(),
             charge,
             std_free_energy,
             formula: formula.iter().copied().collect(),
         }
-    }
-
-    pub fn monoatomic(element: &Element, id: ElementId) -> Self {
-        Self::new(&element.symbol, 0, 0.0, &[(id, 1)])
-    }
-
-    pub fn with_charge(mut self, charge: i32) -> Compound {
-        self.charge = charge;
-        self
     }
 }
 
@@ -223,5 +239,31 @@ impl Derivations {
             reactions: todo!(),
             decompositions: todo!(),
         }
+    }
+}
+
+#[derive(Default)]
+struct Elements(Vec<Element>);
+
+impl Elements {
+    pub fn lookup(&self, symbol: &str) -> ElementId {
+        self.0
+            .iter()
+            .position(|p| p.symbol == symbol)
+            .map(ElementId)
+            .expect("Failed to find element")
+    }
+
+    pub fn push(&mut self, element: Element) -> ElementId {
+        let idx = ElementId(self.0.len());
+        self.0.push(element);
+        idx
+    }
+}
+
+impl std::ops::Index<ElementId> for Elements {
+    type Output = Element;
+    fn index(&self, ElementId(idx): ElementId) -> &Self::Output {
+        &self.0[idx]
     }
 }
