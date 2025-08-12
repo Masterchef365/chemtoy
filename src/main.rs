@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use egui::DragValue;
-use laws::{ChemicalWorld, Compound, Element, Elements, Laws};
+use egui::{DragValue, Pos2, Vec2};
+use laws::{ChemicalWorld, Compound, CompoundId, Element, Elements, Laws};
+use query_accel::QueryAccelerator;
 
 mod laws;
+mod query_accel;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -141,7 +143,7 @@ impl TemplateApp {
         */
 
         //Self { chem }
-        Self { }
+        Self {}
     }
 }
 
@@ -159,4 +161,89 @@ impl eframe::App for TemplateApp {
             ui.label("hi");
         });
     }
+}
+
+struct Sim {
+    particles: Vec<Particle>,
+}
+
+struct Particle {
+    compound: CompoundId,
+    pos: Pos2,
+    vel: Vec2,
+}
+
+impl Sim {
+    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
+        // Step particles forwards in time
+        for part in &mut self.particles {
+            part.pos += part.vel * cfg.dt;
+        }
+
+        // Collide particles with walls
+        for part in &mut self.particles {
+            if part.pos.x < 0.0 {
+                part.pos.x *= -1.0;
+                part.vel.x *= -1.0;
+            }
+
+            if part.pos.y < 0.0 {
+                part.pos.y *= -1.0;
+                part.vel.y *= -1.0;
+            }
+
+            if part.pos.x > cfg.dimensions.x {
+                part.pos.x = 2.0 * cfg.dimensions.x - cfg.dimensions.x;
+                part.vel.x *= -1.0;
+            }
+
+            if part.pos.y > cfg.dimensions.y {
+                part.pos.y = 2.0 * cfg.dimensions.y - cfg.dimensions.y;
+                part.vel.y *= -1.0;
+            }
+        }
+
+
+        // Build a map for the collisions
+
+        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
+        let mut accel = QueryAccelerator::new(points, cfg.particle_radius);
+
+        for i in 0..particles.len() {
+            for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                let p1 = self.particles[i];
+                let p2 = self.particles[neighbor];
+                let m1 = chem.laws.compounds[p1.compound];
+                let (v1, v2) = elastic_collision(p1.compound, v1, m2, v2);
+                self.particles[i].vel
+            }
+        }
+    }
+}
+
+struct SimConfig {
+    dimensions: Vec2,
+    dt: f32,
+    particle_radius: f32,
+}
+
+impl Default for SimConfig {
+    fn default() -> Self {
+        Self {
+            dimensions: Vec2::new(100., 100.),
+            dt: 1. / 60.,
+            particle_radius: 1e-2,
+        }
+    }
+}
+
+fn elastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
+    assert!(m1 > 0.0);
+    assert!(m2 > 0.0);
+    let denom = m1 + m2;
+    let diff = m1 - m2;
+
+    let v1f = (diff * v1 + 2. * m2 * v2) / denom;
+    let v2f = (2. * m1 * v1 + diff * v2) / denom;
+    (v1f, v2f)
 }

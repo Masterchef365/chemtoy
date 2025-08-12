@@ -8,7 +8,7 @@ pub struct CompoundId(usize);
 
 pub struct Laws {
     pub elements: Elements,
-    pub compounds: Vec<Compound>,
+    pub compounds: Compounds,
 }
 
 pub struct Element {
@@ -42,9 +42,12 @@ pub struct Products {
 }
 
 pub struct ChemicalWorld {
-    laws: Laws,
-    deriv: Derivations,
+    pub laws: Laws,
+    pub deriv: Derivations,
 }
+
+#[derive(Default)]
+pub struct Compounds(pub Vec<Compound>);
 
 #[derive(Default)]
 pub struct Elements(pub Vec<Element>);
@@ -111,6 +114,13 @@ impl Elements {
 impl std::ops::Index<ElementId> for Elements {
     type Output = Element;
     fn index(&self, ElementId(idx): ElementId) -> &Self::Output {
+        &self.0[idx]
+    }
+}
+
+impl std::ops::Index<CompoundId> for Compounds {
+    type Output = Compound;
+    fn index(&self, CompoundId(idx): CompoundId) -> &Self::Output {
         &self.0[idx]
     }
 }
