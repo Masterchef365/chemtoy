@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use egui::{DragValue, Pos2, Vec2};
+use egui::{Color32, DragValue, Pos2, Rect, Stroke, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use query_accel::QueryAccelerator;
 
@@ -81,6 +81,7 @@ pub struct TemplateApp {
     chem: ChemicalWorld,
     sim: Sim,
     cfg: SimConfig,
+    scene_rect: Rect,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -124,17 +125,27 @@ impl TemplateApp {
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
             //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
-
             Compound::new("O₂", 0, 0.0, &[(hydrogen, 2)], &elements),
             Compound::new("O⁻", -1, 91.638, &[(hydrogen, 1)], &elements),
             Compound::new("O", 0, 231.736, &[(hydrogen, 1)], &elements),
             //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
             //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
-
-            Compound::new("OH⁻", -1, -138.698, &[(hydrogen, 1), (oxygen, 1)], &elements),
+            Compound::new(
+                "OH⁻",
+                -1,
+                -138.698,
+                &[(hydrogen, 1), (oxygen, 1)],
+                &elements,
+            ),
             Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
             Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
-            Compound::new("H₂O₂", 0, -105.445, &[(hydrogen, 2), (oxygen, 2)], &elements),
+            Compound::new(
+                "H₂O₂",
+                0,
+                -105.445,
+                &[(hydrogen, 2), (oxygen, 2)],
+                &elements,
+            ),
         ]);
 
         let chem = ChemicalWorld::from_laws(Laws {
@@ -144,7 +155,12 @@ impl TemplateApp {
 
         let sim = Sim::new();
 
-        Self { chem, sim, cfg: SimConfig::default() }
+        Self {
+            chem,
+            sim,
+            cfg: SimConfig::default(),
+            scene_rect: Rect::ZERO,
+        }
     }
 }
 
@@ -158,6 +174,8 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.sim.step(&self.cfg, &self.chem);
+
         egui::SidePanel::left("cfg").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Δt: ");
@@ -176,7 +194,19 @@ impl eframe::App for TemplateApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label("hi");
+            egui::Scene::new().show(ui, &mut self.scene_rect, |ui| {
+                // Bounding rect
+                ui.painter().rect_stroke(
+                    Rect::from_min_max(Pos2::ZERO, Pos2::ZERO + self.cfg.dimensions),
+                    0.0,
+                    Stroke::new(1., Color32::WHITE),
+                    egui::StrokeKind::Outside,
+                );
+
+                for particle in &self.sim.particles {
+                    ui.painter().circle_filled(particle.pos, self.cfg.particle_radius, Color32::WHITE);
+                }
+            });
         });
     }
 }
@@ -193,9 +223,7 @@ struct Particle {
 
 impl Sim {
     pub fn new() -> Self {
-        Self {
-            particles: vec![],
-        }
+        Self { particles: vec![] }
     }
 
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
@@ -226,7 +254,6 @@ impl Sim {
                 part.vel.y *= -1.0;
             }
         }
-
 
         // Build a map for the collisions
 
