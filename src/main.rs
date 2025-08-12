@@ -195,16 +195,30 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Scene::new().show(ui, &mut self.scene_rect, |ui| {
+                let (rect, resp) =
+                    ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
+
                 // Bounding rect
                 ui.painter().rect_stroke(
-                    Rect::from_min_max(Pos2::ZERO, Pos2::ZERO + self.cfg.dimensions),
+                    //Rect::from_min_max(Pos2::ZERO, Pos2::ZERO + self.cfg.dimensions),
+                    rect,
                     0.0,
                     Stroke::new(1., Color32::WHITE),
                     egui::StrokeKind::Outside,
                 );
 
                 for particle in &self.sim.particles {
-                    ui.painter().circle_filled(particle.pos, self.cfg.particle_radius, Color32::WHITE);
+                    ui.painter().circle_filled(
+                        particle.pos,
+                        self.cfg.particle_radius,
+                        Color32::GRAY,
+                    );
+                    let compound = &self.chem.laws.compounds[particle.compound];
+                    ui.painter().text(particle.pos, egui::Align2([egui::Align::Center; 2]), &compound.name, Default::default(), Color32::WHITE);
+                }
+
+                if resp.dragged() {
+                    self.sim.particles.push(Particle { compound: self.chem.laws.compounds.0[0], pos: (), vel: () });
                 }
             });
         });
