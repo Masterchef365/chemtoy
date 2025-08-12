@@ -96,8 +96,10 @@ impl ChemicalWorld {
 impl Derivations {
     pub fn from_laws(laws: &Laws) -> Self {
         Self {
-            reactions: todo!(),
-            decompositions: todo!(),
+            //reactions: todo!(),
+            //decompositions: todo!(),
+            reactions: HashMap::new(),
+            decompositions: HashMap::new(),
         }
     }
 }
@@ -137,4 +139,10 @@ fn calculate_formula_mass(formula: &Formula, elements: &Elements) -> f32 {
         .iter()
         .map(|(element, n)| *n as f32 * elements[*element].mass)
         .sum()
+}
+
+impl Compounds {
+    pub fn new(compounds: Vec<Compound>) -> Self {
+        Self(compounds)
+    }
 }

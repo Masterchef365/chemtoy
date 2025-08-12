@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use egui::{DragValue, Pos2, Vec2};
-use laws::{ChemicalWorld, Compound, CompoundId, Element, Elements, Laws};
+use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use query_accel::QueryAccelerator;
 
 mod laws;
@@ -78,7 +78,9 @@ fn main() {
 }
 
 pub struct TemplateApp {
-    //chem: ChemicalWorld,
+    chem: ChemicalWorld,
+    sim: Sim,
+    cfg: SimConfig,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -105,7 +107,6 @@ impl TemplateApp {
             .unwrap_or_default();
         */
 
-        /*
         let mut elements = Elements::default();
 
         let hydrogen = elements.push(Element {
@@ -117,33 +118,33 @@ impl TemplateApp {
             symbol: "O".into(),
         });
 
-        let compounds = vec![
-            Compound::new("H₂", 1, 0.0, &[(hydrogen, 2)]),
-            Compound::new("H⁻", -1, 132.282, &[(hydrogen, 1)]),
-            Compound::new("H", 0, 203.278, &[(hydrogen, 1)]),
+        let compounds = Compounds::new(vec![
+            Compound::new("H₂", 1, 0.0, &[(hydrogen, 2)], &elements),
+            Compound::new("H⁻", -1, 132.282, &[(hydrogen, 1)], &elements),
+            Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
             //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
 
-            Compound::new("O₂", 0, 0.0, &[(hydrogen, 2)]),
-            Compound::new("O⁻", -1, 91.638, &[(hydrogen, 1)]),
-            Compound::new("O", 0, 231.736, &[(hydrogen, 1)]),
+            Compound::new("O₂", 0, 0.0, &[(hydrogen, 2)], &elements),
+            Compound::new("O⁻", -1, 91.638, &[(hydrogen, 1)], &elements),
+            Compound::new("O", 0, 231.736, &[(hydrogen, 1)], &elements),
             //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
             //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
 
-            Compound::new("OH⁻", -1, -138.698, &[(hydrogen, 1), (oxygen, 1)]),
-            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)]),
-            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)]),
-            Compound::new("H₂O₂", 0, -105.445, &[(hydrogen, 2), (oxygen, 2)]),
-        ];
+            Compound::new("OH⁻", -1, -138.698, &[(hydrogen, 1), (oxygen, 1)], &elements),
+            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
+            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
+            Compound::new("H₂O₂", 0, -105.445, &[(hydrogen, 2), (oxygen, 2)], &elements),
+        ]);
 
         let chem = ChemicalWorld::from_laws(Laws {
             elements,
             compounds,
         });
-        */
 
-        //Self { chem }
-        Self {}
+        let sim = Sim::new();
+
+        Self { chem, sim, cfg: SimConfig::default() }
     }
 }
 
@@ -157,6 +158,23 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::SidePanel::left("cfg").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Δt: ");
+                ui.add(DragValue::new(&mut self.cfg.dt).suffix(" units/step"));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Dimensions: ");
+                ui.add(DragValue::new(&mut self.cfg.dimensions.x));
+                ui.label("x");
+                ui.add(DragValue::new(&mut self.cfg.dimensions.y));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Particle radius: ");
+                ui.add(DragValue::new(&mut self.cfg.particle_radius));
+            });
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("hi");
         });
@@ -174,6 +192,12 @@ struct Particle {
 }
 
 impl Sim {
+    pub fn new() -> Self {
+        Self {
+            particles: vec![],
+        }
+    }
+
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
         // Step particles forwards in time
         for part in &mut self.particles {
