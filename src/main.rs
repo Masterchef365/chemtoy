@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use egui::DragValue;
+use laws::{ChemicalWorld, Compound, Element, Elements, Laws};
+
+mod laws;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,7 +76,7 @@ fn main() {
 }
 
 pub struct TemplateApp {
-    chem: ChemicalWorld,
+    //chem: ChemicalWorld,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -100,6 +103,7 @@ impl TemplateApp {
             .unwrap_or_default();
         */
 
+        /*
         let mut elements = Elements::default();
 
         let hydrogen = elements.push(Element {
@@ -134,8 +138,10 @@ impl TemplateApp {
             elements,
             compounds,
         });
+        */
 
-        Self { chem }
+        //Self { chem }
+        Self { }
     }
 }
 
@@ -149,121 +155,8 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {});
-    }
-}
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct ElementId(usize);
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-struct CompoundId(usize);
-
-struct Laws {
-    elements: Elements,
-    compounds: Vec<Compound>,
-}
-
-struct Element {
-    symbol: String,
-    mass: f32,
-}
-
-struct Compound {
-    name: String,
-    formula: HashMap<ElementId, usize>,
-    charge: i32,
-    std_free_energy: f32,
-}
-
-struct Derivations {
-    /// For each compound, which other sets of compounds could be formed?
-    decompositions: HashMap<CompoundId, ProductSet>,
-    /// Reverse of decompositions, but for combinations of only two compounds.
-    /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
-    /// so that there are no redundant indices.
-    reactions: HashMap<(CompoundId, CompoundId), ProductSet>,
-}
-
-/// Product set. Sorted by total_std_free_energy.
-struct ProductSet(Vec<Products>);
-
-struct Products {
-    /// How many of each compound (238099, 2) -> 2 H2O
-    compounds: HashMap<CompoundId, usize>,
-    total_std_free_energy: f32,
-}
-
-struct ChemicalWorld {
-    laws: Laws,
-    deriv: Derivations,
-}
-
-impl Element {
-    pub fn new(symbol: &str, mass: f32) -> Self {
-        Self {
-            symbol: symbol.to_string(),
-            mass,
-        }
-    }
-}
-
-impl Compound {
-    pub fn new(
-        name: &str,
-        charge: i32,
-        std_free_energy: f32,
-        formula: &[(ElementId, usize)],
-    ) -> Self {
-        Self {
-            name: name.to_string(),
-            charge,
-            std_free_energy,
-            formula: formula.iter().copied().collect(),
-        }
-    }
-}
-
-impl ChemicalWorld {
-    pub fn from_laws(laws: Laws) -> Self {
-        Self {
-            deriv: Derivations::from_laws(&laws),
-            laws,
-        }
-    }
-}
-
-impl Derivations {
-    pub fn from_laws(laws: &Laws) -> Self {
-        Self {
-            reactions: todo!(),
-            decompositions: todo!(),
-        }
-    }
-}
-
-#[derive(Default)]
-struct Elements(Vec<Element>);
-
-impl Elements {
-    pub fn lookup(&self, symbol: &str) -> ElementId {
-        self.0
-            .iter()
-            .position(|p| p.symbol == symbol)
-            .map(ElementId)
-            .expect("Failed to find element")
-    }
-
-    pub fn push(&mut self, element: Element) -> ElementId {
-        let idx = ElementId(self.0.len());
-        self.0.push(element);
-        idx
-    }
-}
-
-impl std::ops::Index<ElementId> for Elements {
-    type Output = Element;
-    fn index(&self, ElementId(idx): ElementId) -> &Self::Output {
-        &self.0[idx]
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.label("hi");
+        });
     }
 }
