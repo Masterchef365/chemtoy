@@ -193,58 +193,74 @@ impl eframe::App for TemplateApp {
             });
 
             ui.group(|ui| {
-            ui.strong("Simulation");
-            ui.horizontal(|ui| {
-                ui.label("Δt: ");
-                ui.add(DragValue::new(&mut self.cfg.dt).suffix(" units/step"));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Dimensions: ");
-                ui.add(DragValue::new(&mut self.cfg.dimensions.x));
-                ui.label("x");
-                ui.add(DragValue::new(&mut self.cfg.dimensions.y));
-            });
-            ui.horizontal(|ui| {
-                ui.label("Particle radius: ");
-                ui.add(DragValue::new(&mut self.cfg.particle_radius));
-            });
+                ui.strong("Simulation");
+                ui.horizontal(|ui| {
+                    ui.label("Δt: ");
+                    ui.add(
+                        DragValue::new(&mut self.cfg.dt)
+                            .speed(1e-3)
+                            .range(0.0..=10.0)
+                            .suffix(" units/step"),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Dimensions: ");
+                    ui.add(DragValue::new(&mut self.cfg.dimensions.x));
+                    ui.label("x");
+                    ui.add(DragValue::new(&mut self.cfg.dimensions.y));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Particle radius: ");
+                    ui.add(DragValue::new(&mut self.cfg.particle_radius));
+                });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::Scene::new().zoom_range(1.0..=100.0).show(ui, &mut self.scene_rect, |ui| {
-                let (rect, resp) =
-                    ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
-                // Background rect
-                ui.painter().rect_filled(
-                    rect,
-                    0.0,
-                    Color32::DARK_GRAY,
-                );
+            egui::Scene::new()
+                .zoom_range(1.0..=100.0)
+                .show(ui, &mut self.scene_rect, |ui| {
+                    let (rect, resp) =
+                        ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
+                    // Background rect
+                    ui.painter().rect_filled(rect, 0.0, Color32::DARK_GRAY);
 
-                // Bounding rect
-                ui.painter().rect_stroke(
-                    //Rect::from_min_max(Pos2::ZERO, Pos2::ZERO + self.cfg.dimensions),
-                    rect,
-                    0.0,
-                    Stroke::new(1., Color32::WHITE),
-                    egui::StrokeKind::Outside,
-                );
-
-                for particle in &self.sim.particles {
-                    ui.painter().circle_filled(
-                        particle.pos,
-                        self.cfg.particle_radius,
-                        Color32::GRAY,
+                    // Bounding rect
+                    ui.painter().rect_stroke(
+                        //Rect::from_min_max(Pos2::ZERO, Pos2::ZERO + self.cfg.dimensions),
+                        rect,
+                        0.0,
+                        Stroke::new(1., Color32::WHITE),
+                        egui::StrokeKind::Outside,
                     );
-                    let compound = &self.chem.laws.compounds[particle.compound];
-                    ui.painter().text(particle.pos, egui::Align2([egui::Align::Center; 2]), &compound.name, Default::default(), Color32::WHITE);
-                }
 
-                if let Some(drag_pos) = resp.interact_pointer_pos() {
-                    self.sim.particles.push(Particle { compound: self.draw_compound, pos: drag_pos - rect.min.to_vec2(), vel: resp.drag_delta() });
-                }
-            });
+                    for particle in &self.sim.particles {
+                        ui.painter().circle_filled(
+                            particle.pos + rect.min.to_vec2(),
+                            self.cfg.particle_radius,
+                            Color32::GRAY,
+                        );
+                        let compound = &self.chem.laws.compounds[particle.compound];
+                        ui.painter().text(
+                            particle.pos,
+                            egui::Align2([egui::Align::Center; 2]),
+                            &compound.name,
+                            Default::default(),
+                            Color32::WHITE,
+                        );
+                    }
+
+                    //if let Some(drag_pos) = resp.interact_pointer_pos() {
+                    if let Some(interact_pos) = resp.interact_pointer_pos() {
+                        if resp.clicked() {
+                            self.sim.particles.push(Particle {
+                                compound: self.draw_compound,
+                                pos: interact_pos - rect.min.to_vec2(),
+                                vel: resp.drag_delta(),
+                            });
+                        }
+                    }
+                });
         });
     }
 }
@@ -295,7 +311,7 @@ impl Sim {
 
         // Build a map for the collisions
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0);
 
         // Do collisions
         for i in 0..self.particles.len() {
@@ -309,7 +325,7 @@ impl Sim {
 
         // Add gravity
         for particle in &mut self.particles {
-            particle.vel.y -= 9.8 * 1e-1; // pixels/frame^2
+            particle.vel.y += 9.8 * 1e-1; // pixels/frame^2
         }
     }
 }
@@ -336,7 +352,11 @@ fn elastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
     let denom = m1 + m2;
     let diff = m1 - m2;
 
-    let v1f = (diff * v1 + 2. * m2 * v2) / denom;
-    let v2f = (2. * m1 * v1 + diff * v2) / denom;
+    let v1f = (diff * v1 - 2. * m2 * v2) / denom;
+    let v2f = (2. * m1 * v1 - diff * v2) / denom;
     (v1f, v2f)
+}
+
+fn cross2d(a: Vec2, b: Vec2) -> f32 {
+    a.x * b.y - a.y * b.x
 }
