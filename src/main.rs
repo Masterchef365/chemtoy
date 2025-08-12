@@ -82,6 +82,8 @@ pub struct TemplateApp {
     sim: Sim,
     cfg: SimConfig,
     scene_rect: Rect,
+    draw_compound: CompoundId,
+    paused: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -155,11 +157,15 @@ impl TemplateApp {
 
         let sim = Sim::new();
 
+        let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
+
         Self {
+            draw_compound,
             chem,
             sim,
             cfg: SimConfig::default(),
             scene_rect: Rect::ZERO,
+            paused: false,
         }
     }
 }
@@ -174,9 +180,20 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.sim.step(&self.cfg, &self.chem);
+        if !self.paused {
+            self.sim.step(&self.cfg, &self.chem);
+            ctx.request_repaint();
+        }
 
         egui::SidePanel::left("cfg").show(ctx, |ui| {
+            ui.group(|ui| {
+                ui.strong("Time");
+                let text = if self.paused { "Paused" } else { "Running" };
+                self.paused ^= ui.button(text).clicked();
+            });
+
+            ui.group(|ui| {
+            ui.strong("Simulation");
             ui.horizontal(|ui| {
                 ui.label("Δt: ");
                 ui.add(DragValue::new(&mut self.cfg.dt).suffix(" units/step"));
@@ -191,12 +208,19 @@ impl eframe::App for TemplateApp {
                 ui.label("Particle radius: ");
                 ui.add(DragValue::new(&mut self.cfg.particle_radius));
             });
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::Scene::new().show(ui, &mut self.scene_rect, |ui| {
+            egui::Scene::new().zoom_range(1.0..=100.0).show(ui, &mut self.scene_rect, |ui| {
                 let (rect, resp) =
                     ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
+                // Background rect
+                ui.painter().rect_filled(
+                    rect,
+                    0.0,
+                    Color32::DARK_GRAY,
+                );
 
                 // Bounding rect
                 ui.painter().rect_stroke(
@@ -217,8 +241,8 @@ impl eframe::App for TemplateApp {
                     ui.painter().text(particle.pos, egui::Align2([egui::Align::Center; 2]), &compound.name, Default::default(), Color32::WHITE);
                 }
 
-                if resp.dragged() {
-                    self.sim.particles.push(Particle { compound: self.chem.laws.compounds.0[0], pos: (), vel: () });
+                if let Some(drag_pos) = resp.interact_pointer_pos() {
+                    self.sim.particles.push(Particle { compound: self.draw_compound, pos: drag_pos - rect.min.to_vec2(), vel: resp.drag_delta() });
                 }
             });
         });
@@ -270,10 +294,10 @@ impl Sim {
         }
 
         // Build a map for the collisions
-
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         let accel = QueryAccelerator::new(&points, cfg.particle_radius);
 
+        // Do collisions
         for i in 0..self.particles.len() {
             for neighbor in accel.query_neighbors(&points, i, points[i]) {
                 let [p1, p2] = &mut self.particles.get_disjoint_mut([i, neighbor]).unwrap();
@@ -281,6 +305,11 @@ impl Sim {
                 let m2 = chem.laws.compounds[p2.compound].mass;
                 (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
             }
+        }
+
+        // Add gravity
+        for particle in &mut self.particles {
+            particle.vel.y -= 9.8 * 1e-1; // pixels/frame^2
         }
     }
 }
@@ -296,7 +325,7 @@ impl Default for SimConfig {
         Self {
             dimensions: Vec2::new(100., 100.),
             dt: 1. / 60.,
-            particle_radius: 1e-2,
+            particle_radius: 5.0,
         }
     }
 }

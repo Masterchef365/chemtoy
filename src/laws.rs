@@ -145,4 +145,11 @@ impl Compounds {
     pub fn new(compounds: Vec<Compound>) -> Self {
         Self(compounds)
     }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (CompoundId, &Compound)> + '_ {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(idx, comp)| (CompoundId(idx), comp))
+    }
 }
