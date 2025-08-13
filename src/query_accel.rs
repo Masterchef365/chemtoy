@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+//use std::collections::HashMap;
+use egui::ahash::HashMap;
 
 use egui::Pos2;
 use smallvec::SmallVec;

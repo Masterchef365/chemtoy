@@ -281,47 +281,68 @@ impl Sim {
     }
 
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
-        // Step particles forwards in time
-        for part in &mut self.particles {
-            part.pos += part.vel * cfg.dt;
-        }
-
-        // Collide particles with walls
-        for part in &mut self.particles {
-            if part.pos.x < 0.0 {
-                part.pos.x *= -1.0;
-                part.vel.x *= -1.0;
-            }
-
-            if part.pos.y < 0.0 {
-                part.pos.y *= -1.0;
-                part.vel.y *= -1.0;
-            }
-
-            if part.pos.x > cfg.dimensions.x {
-                part.pos.x = 2.0 * cfg.dimensions.x - cfg.dimensions.x;
-                part.vel.x *= -1.0;
-            }
-
-            if part.pos.y > cfg.dimensions.y {
-                part.pos.y = 2.0 * cfg.dimensions.y - cfg.dimensions.y;
-                part.vel.y *= -1.0;
-            }
-        }
-
         // Build a map for the collisions
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0);
+        // Arbitrary, must be larger than particle radius. 
+        // TODO: Tune for perf. 
+        let accel_radius = cfg.particle_radius * 10.0;
+        let accel = QueryAccelerator::new(&points, accel_radius); 
 
-        // Do collisions
-        for i in 0..self.particles.len() {
-            for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                let [p1, p2] = &mut self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+        let mut elapsed = 0.0;
+        'timeloop: while elapsed < cfg.dt {
+            let mut min_dt = cfg.dt;
+
+            let mut min_particle_indices = None;
+            let mut min_boundary_vel_idx = None;
+            for i in 0..self.particles.len() {
+                'neighbors: for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                    let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+
+                    // TODO: Cache these intersections AND evict the cache ...
+                    if let Some(intersection_dt) = time_of_intersection_particles(p2.pos - p1.pos, p2.vel - p1.vel, cfg.particle_radius * 2.0) {
+                        assert!(intersection_dt > 0.0);
+                        if intersection_dt < min_dt {
+                            min_dt = intersection_dt;
+                            min_particle_indices = Some((i, neighbor));
+                            min_boundary_vel_idx = None;
+                        }
+                    }
+                }
+
+                let particle = &self.particles[i];
+                let (boundary_dt, new_vel) = time_of_intersection_boundary(particle.pos, particle.vel, cfg.dimensions);
+                if boundary_dt < min_dt {
+                    min_boundary_vel_idx = Some((i, new_vel));
+                    min_particle_indices = None;
+                    min_dt = boundary_dt;
+                }
+            }
+
+            if let Some((i, vel)) = min_boundary_vel_idx {
+                self.particles[i].vel = vel;
+            }
+
+            if let Some((i, neighbor)) = min_particle_indices {
+                let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
                 let m1 = chem.laws.compounds[p1.compound].mass;
                 let m2 = chem.laws.compounds[p2.compound].mass;
                 (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
             }
+
+            dbg!(min_dt);
+            timestep_particles(&mut self.particles, min_dt);
+            elapsed += min_dt;
         }
+
+
+
+        /*
+        // Do collisions
+        for i in 0..self.particles.len() {
+            for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                            }
+        }
+        */
 
         // Add gravity
         for particle in &mut self.particles {
@@ -352,11 +373,107 @@ fn elastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
     let denom = m1 + m2;
     let diff = m1 - m2;
 
-    let v1f = (diff * v1 - 2. * m2 * v2) / denom;
+    let v1f = (diff * v1 + 2. * m2 * v2) / denom;
     let v2f = (2. * m1 * v1 - diff * v2) / denom;
     (v1f, v2f)
 }
 
 fn cross2d(a: Vec2, b: Vec2) -> f32 {
     a.x * b.y - a.y * b.x
+}
+
+// WARNING: Got lazy and asked a GPT
+fn time_of_intersection_particles(rel_pos: Vec2, rel_vel: Vec2, sum_radii: f32) -> Option<f32> {
+    // Intersection means |rel_pos + t * rel_vel| == 0
+    // => (rel_pos + t*rel_vel)·(rel_pos + t*rel_vel) == 0
+    let a = rel_vel.dot(rel_vel);
+    let b = 2.0 * rel_pos.dot(rel_vel);
+    let c = rel_pos.dot(rel_pos) - sum_radii;
+
+    if a == 0.0 {
+        // No relative motion
+        if c == 0.0 {
+            return Some(0.0); // Already intersecting
+        }
+        return None; // Never intersect
+    }
+
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        return None; // No real solution
+    }
+
+    let sqrt_d = discriminant.sqrt();
+    let t1 = (-b - sqrt_d) / (2.0 * a);
+    let t2 = (-b + sqrt_d) / (2.0 * a);
+
+    // We care about the earliest non-negative intersection
+    let mut t_min = f32::INFINITY;
+    if t1 >= 0.0 {
+        t_min = t_min.min(t1);
+    }
+    if t2 >= 0.0 {
+        t_min = t_min.min(t2);
+    }
+
+    if t_min.is_infinite() {
+        None
+    } else {
+        Some(t_min)
+    }
+}
+
+/// Step particles forwards in time
+fn timestep_particles(particles: &mut [Particle], dt: f32) {
+    for part in particles {
+        part.pos += part.vel * dt;
+    }
+}
+
+fn particle_collisions(particles: &mut [Particle], cfg: &SimConfig) {
+    // Collide particles with walls
+    for part in particles {
+        if part.pos.x < 0.0 {
+            part.pos.x *= -1.0;
+            part.vel.x *= -1.0;
+        }
+
+        if part.pos.y < 0.0 {
+            part.pos.y *= -1.0;
+            part.vel.y *= -1.0;
+        }
+
+        if part.pos.x > cfg.dimensions.x {
+            part.pos.x = 2.0 * cfg.dimensions.x - cfg.dimensions.x;
+            part.vel.x *= -1.0;
+        }
+
+        if part.pos.y > cfg.dimensions.y {
+            part.pos.y = 2.0 * cfg.dimensions.y - cfg.dimensions.y;
+            part.vel.y *= -1.0;
+        }
+    }
+}
+
+/// Returns time of intersection and the reflected velocity vector. 
+fn time_of_intersection_boundary(pos: Pos2, vel: Vec2, dimensions: Vec2) -> (f32, Vec2) {
+    fn intersect(x: f32, vel: f32, width: f32) -> f32 {
+        if vel > 0.0 {
+            (width - x) / vel
+        } else {
+            x / vel
+        }
+    }
+
+    let xtime = intersect(pos.x, vel.x, dimensions.x);
+    let ytime = intersect(pos.y, vel.y, dimensions.y);
+
+    assert!(xtime > 0.0);
+    assert!(ytime > 0.0);
+
+    if xtime < ytime {
+        (xtime, Vec2::new(-vel.x, vel.y))
+    } else {
+        (ytime, Vec2::new(vel.x, -vel.y))
+    }
 }
