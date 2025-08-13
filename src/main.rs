@@ -7,8 +7,6 @@ use query_accel::QueryAccelerator;
 mod laws;
 mod query_accel;
 
-const GRAVITY_FORCE: f32 = 9.8;
-
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
@@ -230,9 +228,19 @@ impl eframe::App for TemplateApp {
                     ui.label("Max collision time: ");
                     ui.add(DragValue::new(&mut self.cfg.max_collision_time).speed(1e-2));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Gravity: ");
+                    ui.add(DragValue::new(&mut self.cfg.gravity).speed(1e-2));
+                });
 
-                let total_energy = self.sim.particles.iter().map(|particle| particle.vel.length_sq() / 2.0 + (self.cfg.dimensions.y - particle.pos.y) * GRAVITY_FORCE).sum::<f32>();
-                ui.label(format!("Total energy: {total_energy:.02}"));
+
+                // TODO: Neglects mass...
+                let potential_energy = self.sim.particles.iter().map(|particle| (self.cfg.dimensions.y - particle.pos.y) * self.cfg.gravity).sum::<f32>();
+                let kinetic_energy = self.sim.particles.iter().map(|particle| particle.vel.length_sq() / 2.0).sum::<f32>();
+                let total_energy = potential_energy + kinetic_energy;
+                ui.label(format!("Potential energy: {potential_energy:.02}"));
+                ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
+                ui.label(format!("Total energy: {total_energy}"));
             });
         });
 
@@ -397,7 +405,7 @@ impl Sim {
                 let dt = min_dt / 2.0;
                 timestep_particles(&mut self.particles, dt);
                 for particle in &mut self.particles {
-                    particle.vel.y += GRAVITY_FORCE * dt; // pixels/frame^2
+                    particle.vel.y += cfg.gravity * dt; // pixels/frame^2
                 }
                 if remaining_loops == 0 {
                     dbg!(elapsed, dt);
@@ -428,6 +436,7 @@ struct SimConfig {
     particle_radius: f32,
     max_collision_time: f32,
     fill_timestep: bool,
+    gravity: f32,
 }
 
 impl Default for SimConfig {
@@ -438,6 +447,7 @@ impl Default for SimConfig {
             particle_radius: 10.0,
             max_collision_time: 1e-2,
             fill_timestep: true,
+            gravity: 9.8,
         }
     }
 }
