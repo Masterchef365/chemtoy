@@ -7,6 +7,8 @@ use query_accel::QueryAccelerator;
 mod laws;
 mod query_accel;
 
+const GRAVITY_FORCE: f32 = 9.8;
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
@@ -228,6 +230,9 @@ impl eframe::App for TemplateApp {
                     ui.label("Max collision time: ");
                     ui.add(DragValue::new(&mut self.cfg.max_collision_time).speed(1e-2));
                 });
+
+                let total_energy = self.sim.particles.iter().map(|particle| particle.vel.length_sq() / 2.0 + (self.cfg.dimensions.y - particle.pos.y) * GRAVITY_FORCE).sum::<f32>();
+                ui.label(format!("Total energy: {total_energy:.02}"));
             });
         });
 
@@ -385,7 +390,7 @@ impl Sim {
                 let dt = min_dt / 2.0;
                 timestep_particles(&mut self.particles, dt);
                 for particle in &mut self.particles {
-                    particle.vel.y += 9.8 * 1e-1; // pixels/frame^2
+                    particle.vel.y += GRAVITY_FORCE * dt; // pixels/frame^2
                 }
                 elapsed += dt;
             }
