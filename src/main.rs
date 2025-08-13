@@ -346,7 +346,7 @@ impl Sim {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
-        //let accel = QueryAccelerator::new(&points, cfg.particle_radius * 100.0);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 20.0);
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
@@ -362,8 +362,8 @@ impl Sim {
             let mut min_boundary_vel_idx = None;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
-                //for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                for neighbor in i + 1..self.particles.len() {
+                for neighbor in accel.query_neighbors_fast(i, points[i]) {
+                //for neighbor in i + 1..self.particles.len() {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
                     // TODO: Cache these intersections AND evict the cache ...
