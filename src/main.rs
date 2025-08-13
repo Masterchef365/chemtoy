@@ -84,7 +84,7 @@ pub struct TemplateApp {
     scene_rect: Rect,
     draw_compound: CompoundId,
     paused: bool,
-    substeps: usize,
+    slowdown: usize,
     frame_count: usize,
 }
 
@@ -162,7 +162,7 @@ impl TemplateApp {
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
 
         Self {
-            substeps: 1,
+            slowdown: 1,
             frame_count: 0,
             draw_compound,
             chem,
@@ -191,11 +191,12 @@ impl eframe::App for TemplateApp {
                 ui.strong("Time");
                 let text = if self.paused { "Paused" } else { "Running" };
                 ui.horizontal(|ui| {
-                    ui.label("Substep: ");
-                    ui.add(DragValue::new(&mut self.substeps));
+                    ui.label("Slowdown: ");
+                    ui.add(DragValue::new(&mut self.slowdown));
                 });
                 self.paused ^= ui.button(text).clicked();
                 single_step |= ui.button("Single step").clicked();
+                ui.checkbox(&mut self.cfg.fill_timestep, "Fill timestep");
             });
 
             ui.group(|ui| {
@@ -284,7 +285,7 @@ impl eframe::App for TemplateApp {
         });
 
         if !self.paused || single_step {
-            if self.frame_count % self.substeps == 0 {
+            if self.frame_count % self.slowdown == 0 {
                 self.sim.step(&self.cfg, &self.chem);
             }
             ctx.request_repaint();
@@ -316,67 +317,74 @@ impl Sim {
         //let accel = QueryAccelerator::new(&points, cfg.particle_radius * 100.0);
 
         let mut elapsed = 0.0;
-        //while elapsed < cfg.dt {
-        let mut min_dt = cfg.dt - elapsed;
+        while elapsed < cfg.dt {
+            let mut min_dt = cfg.dt;
 
-        let mut min_particle_indices = None;
-        let mut min_boundary_vel_idx = None;
-        for i in 0..self.particles.len() {
-            // Check time of intersection with neighbors
-            //for neighbor in accel.query_neighbors(&points, i, points[i]) {
-            for neighbor in i + 1..self.particles.len() {
-                let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+            let mut min_particle_indices = None;
+            let mut min_boundary_vel_idx = None;
+            for i in 0..self.particles.len() {
+                // Check time of intersection with neighbors
+                //for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                for neighbor in i + 1..self.particles.len() {
+                    let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
-                // TODO: Cache these intersections AND evict the cache ...
-                if let Some(intersection_dt) = time_of_intersection_particles(
-                    p2.pos - p1.pos,
-                    p2.vel - p1.vel,
-                    cfg.particle_radius * 2.0,
+                    // TODO: Cache these intersections AND evict the cache ...
+                    if let Some(intersection_dt) = time_of_intersection_particles(
+                        p2.pos - p1.pos,
+                        p2.vel - p1.vel,
+                        cfg.particle_radius * 2.0,
+                    ) {
+                        assert!(intersection_dt >= 0.0);
+                        if intersection_dt < min_dt {
+                            min_dt = intersection_dt;
+                            min_particle_indices = Some((i, neighbor));
+                            min_boundary_vel_idx = None;
+                        }
+                    }
+                }
+
+                let particle = &self.particles[i];
+                if let Some((boundary_dt, new_vel)) = time_of_intersection_boundary(
+                    particle.pos,
+                    particle.vel,
+                    cfg.dimensions,
+                    cfg.particle_radius,
                 ) {
-                    assert!(intersection_dt >= 0.0);
-                    if intersection_dt < min_dt {
-                        min_dt = intersection_dt;
-                        min_particle_indices = Some((i, neighbor));
-                        min_boundary_vel_idx = None;
+                    if boundary_dt < min_dt {
+                        min_boundary_vel_idx = Some((i, new_vel));
+                        min_particle_indices = None;
+                        min_dt = boundary_dt;
                     }
                 }
             }
 
-            let particle = &self.particles[i];
-            if let Some((boundary_dt, new_vel)) = time_of_intersection_boundary(
-                particle.pos,
-                particle.vel,
-                cfg.dimensions,
-                cfg.particle_radius,
-            ) {
-                if boundary_dt < min_dt {
-                    min_boundary_vel_idx = Some((i, new_vel));
-                    min_particle_indices = None;
-                    min_dt = boundary_dt;
+            if min_dt < cfg.max_collision_time {
+                // Interact the particles. max_collision_time should be small enough not to neglect any
+                // external forces(!)
+                if let Some((i, vel)) = min_boundary_vel_idx {
+                    self.particles[i].vel = vel;
                 }
+
+                if let Some((i, neighbor)) = min_particle_indices {
+                    let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+                    let m1 = chem.laws.compounds[p1.compound].mass;
+                    let m2 = chem.laws.compounds[p2.compound].mass;
+                    (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
+                }
+            } else {
+                // Cowardly move halfway to the goal
+                let dt = min_dt / 2.0;
+                timestep_particles(&mut self.particles, dt);
+                for particle in &mut self.particles {
+                    particle.vel.y += 9.8 * 1e-1; // pixels/frame^2
+                }
+                elapsed += dt;
+            }
+
+            if !cfg.fill_timestep {
+                break;
             }
         }
-
-        if min_dt < cfg.max_collision_time {
-            // Interact the particles. max_collision_time should be small enough not to neglect any
-            // external forces(!)
-            if let Some((i, vel)) = min_boundary_vel_idx {
-                self.particles[i].vel = vel;
-            }
-
-            if let Some((i, neighbor)) = min_particle_indices {
-                let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-                let m1 = chem.laws.compounds[p1.compound].mass;
-                let m2 = chem.laws.compounds[p2.compound].mass;
-                (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
-            }
-        } else {
-            // Cowardly move halfway to the goal 
-            timestep_particles(&mut self.particles, min_dt / 2.0);
-        }
-
-        elapsed += min_dt;
-        //}
 
         /*
         // Do collisions
@@ -387,9 +395,6 @@ impl Sim {
         */
 
         // Add gravity
-        for particle in &mut self.particles {
-            particle.vel.y += 9.8 * 1e-1; // pixels/frame^2
-        }
     }
 }
 
@@ -398,6 +403,7 @@ struct SimConfig {
     dt: f32,
     particle_radius: f32,
     max_collision_time: f32,
+    fill_timestep: bool,
 }
 
 impl Default for SimConfig {
@@ -407,6 +413,7 @@ impl Default for SimConfig {
             dt: 1. / 60.,
             particle_radius: 5.0,
             max_collision_time: 1e-2,
+            fill_timestep: true,
         }
     }
 }
