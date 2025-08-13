@@ -192,7 +192,7 @@ impl eframe::App for TemplateApp {
                 let text = if self.paused { "Paused" } else { "Running" };
                 ui.horizontal(|ui| {
                     ui.label("Slowdown: ");
-                    ui.add(DragValue::new(&mut self.slowdown));
+                    ui.add(DragValue::new(&mut self.slowdown).range(1..=usize::MAX));
                 });
                 self.paused ^= ui.button(text).clicked();
                 single_step |= ui.button("Single step").clicked();
@@ -285,7 +285,7 @@ impl eframe::App for TemplateApp {
         });
 
         if !self.paused || single_step {
-            if self.frame_count % self.slowdown == 0 {
+            if self.frame_count % self.slowdown.max(1) == 0 {
                 self.sim.step(&self.cfg, &self.chem);
             }
             ctx.request_repaint();
@@ -367,9 +367,18 @@ impl Sim {
 
                 if let Some((i, neighbor)) = min_particle_indices {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-                    let m1 = chem.laws.compounds[p1.compound].mass;
-                    let m2 = chem.laws.compounds[p2.compound].mass;
-                    (p1.vel, p2.vel) = elastic_collision(m1, p1.vel, m2, p2.vel);
+                    let m1 = 1.0;
+                    let m2 = 1.0;
+                    //let m1 = chem.laws.compounds[p1.compound].mass;
+                    //let m2 = chem.laws.compounds[p2.compound].mass;
+
+                    let rel_pos = p2.pos - p1.pos;
+                    let rel_dir = rel_pos.normalized();
+                    let rel_vel = p2.vel - p1.vel;
+
+                    let (v1, v2) = elastic_collision(m1, rel_vel.dot(rel_dir), m2, 0.0);
+                    p2.vel = p1.vel + rel_dir * v1;
+                    p1.vel = p1.vel + rel_dir * v2;
                 }
             } else {
                 // Cowardly move halfway to the goal
@@ -418,7 +427,7 @@ impl Default for SimConfig {
     }
 }
 
-fn elastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
+fn elastic_collision(m1: f32, v1: f32, m2: f32, v2: f32) -> (f32, f32) {
     assert!(m1 > 0.0);
     assert!(m2 > 0.0);
     let denom = m1 + m2;
