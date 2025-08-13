@@ -244,12 +244,15 @@ impl eframe::App for TemplateApp {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Query accel granularity: ");
-                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(2.1..=1000.0).speed(1e-2));
+                    ui.add(
+                        DragValue::new(&mut self.cfg.query_accel_radius_mul)
+                            .range(2.1..=1000.0)
+                            .speed(1e-2),
+                    );
                 });
 
                 self.cfg.dt = self.cfg.dt.max(self.cfg.max_collision_time);
                 self.cfg.max_collision_time = self.cfg.max_collision_time.min(self.cfg.dt);
-
 
                 // TODO: Neglects mass...
                 let potential_energy = self
@@ -351,22 +354,31 @@ impl Sim {
 
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
         // Build a map for the collisions
-        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
         let query_accel_radius = cfg.particle_radius * cfg.query_accel_radius_mul;
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
-
-        // Particles which are moving too fast to be considered in the normal neighbor lookup and
-        // must be considered with N^2 lookup complexity
-        // TODO: Query accelerator for space AND time(?!)
-        //dbg!(self.particles.iter().map(|particle| particle.vel.length() * cfg.dt).max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)));
-        let fast_particles: Vec<usize> = self.particles.iter().enumerate().filter_map(|(idx, particle)| (particle.vel.length() * cfg.dt > query_accel_radius).then(|| idx)).collect();
-        dbg!(fast_particles.len());
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
         while elapsed < cfg.dt {
+            let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
+            let accel =
+                QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
+
+            // Particles which are moving too fast to be considered in the normal neighbor lookup and
+            // must be considered with N^2 lookup complexity
+            // TODO: Query accelerator for space AND time(?!)
+            //dbg!(self.particles.iter().map(|particle| particle.vel.length() * cfg.dt).max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)));
+            let fast_particles: Vec<usize> = self
+                .particles
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, particle)| {
+                    (particle.vel.length() * cfg.dt > query_accel_radius).then(|| idx)
+                })
+                .collect();
+            dbg!(fast_particles.len());
+
             if remaining_loops == 0 {
                 break;
             }
@@ -379,7 +391,10 @@ impl Sim {
             //let mut n_neighbors: u64 = 0;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
-                for neighbor in accel.query_neighbors_fast(i, points[i]).chain(fast_particles.iter().copied()) {
+                for neighbor in accel
+                    .query_neighbors_fast(i, points[i])
+                    .chain(fast_particles.iter().copied())
+                {
                     if neighbor == i {
                         continue;
                     }
@@ -461,8 +476,8 @@ impl Sim {
         /*
         // Do collisions
         for i in 0..self.particles.len() {
-            for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                            }
+        for neighbor in accel.query_neighbors(&points, i, points[i]) {
+        }
         }
         */
 
