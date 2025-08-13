@@ -289,18 +289,18 @@ impl Sim {
         let accel = QueryAccelerator::new(&points, accel_radius); 
 
         let mut elapsed = 0.0;
-        'timeloop: while elapsed < cfg.dt {
+        while elapsed < cfg.dt {
             let mut min_dt = cfg.dt;
 
             let mut min_particle_indices = None;
             let mut min_boundary_vel_idx = None;
             for i in 0..self.particles.len() {
-                'neighbors: for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                for neighbor in accel.query_neighbors(&points, i, points[i]) {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
                     // TODO: Cache these intersections AND evict the cache ...
                     if let Some(intersection_dt) = time_of_intersection_particles(p2.pos - p1.pos, p2.vel - p1.vel, cfg.particle_radius * 2.0) {
-                        assert!(intersection_dt > 0.0);
+                        assert!(intersection_dt >= 0.0);
                         if intersection_dt < min_dt {
                             min_dt = intersection_dt;
                             min_particle_indices = Some((i, neighbor));
@@ -310,19 +310,22 @@ impl Sim {
                 }
 
                 let particle = &self.particles[i];
-                let (boundary_dt, new_vel) = time_of_intersection_boundary(particle.pos, particle.vel, cfg.dimensions);
-                if boundary_dt < min_dt {
-                    min_boundary_vel_idx = Some((i, new_vel));
-                    min_particle_indices = None;
-                    min_dt = boundary_dt;
+                if let Some((boundary_dt, new_vel)) = time_of_intersection_boundary(particle.pos, particle.vel, cfg.dimensions, cfg.particle_radius) {
+                    if boundary_dt < min_dt {
+                        min_boundary_vel_idx = Some((i, new_vel));
+                        min_particle_indices = None;
+                        min_dt = boundary_dt;
+                    }
                 }
             }
 
             if let Some((i, vel)) = min_boundary_vel_idx {
+                dbg!(i, vel);
                 self.particles[i].vel = vel;
             }
 
             if let Some((i, neighbor)) = min_particle_indices {
+                dbg!(i, neighbor);
                 let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
                 let m1 = chem.laws.compounds[p1.compound].mass;
                 let m2 = chem.laws.compounds[p2.compound].mass;
@@ -456,24 +459,44 @@ fn particle_collisions(particles: &mut [Particle], cfg: &SimConfig) {
 }
 
 /// Returns time of intersection and the reflected velocity vector. 
-fn time_of_intersection_boundary(pos: Pos2, vel: Vec2, dimensions: Vec2) -> (f32, Vec2) {
-    fn intersect(x: f32, vel: f32, width: f32) -> f32 {
+fn time_of_intersection_boundary(pos: Pos2, vel: Vec2, dimensions: Vec2, radius: f32) -> Option<(f32, Vec2)> {
+    fn intersect(x: f32, vel: f32, width: f32, radius: f32) -> Option<f32> {
+        if vel == 0.0 {
+            return None;
+        }
+
         if vel > 0.0 {
-            (width - x) / vel
+            Some((width - x - radius) / vel)
         } else {
-            x / vel
+            Some((x - radius) / -vel)
         }
     }
 
-    let xtime = intersect(pos.x, vel.x, dimensions.x);
-    let ytime = intersect(pos.y, vel.y, dimensions.y);
+    let xtime = intersect(pos.x, vel.x, dimensions.x, radius);
+    let ytime = intersect(pos.y, vel.y, dimensions.y, radius);
 
-    assert!(xtime > 0.0);
-    assert!(ytime > 0.0);
+    dbg!(vel);
+    dbg!(pos);
+    dbg!(xtime, ytime);
 
-    if xtime < ytime {
-        (xtime, Vec2::new(-vel.x, vel.y))
-    } else {
-        (ytime, Vec2::new(vel.x, -vel.y))
+    if let Some(xtime) = xtime {
+        assert!(xtime >= 0.0);
+    }
+
+    if let Some(ytime) = ytime {
+        assert!(ytime >= 0.0);
+    }
+
+    match (xtime, ytime) {
+        (Some(xtime), Some(ytime)) if xtime < ytime => {
+            Some((xtime, Vec2::new(-vel.x, vel.y)))
+        },
+        (Some(xtime), None) => {
+            Some((xtime, Vec2::new(-vel.x, vel.y)))
+        },
+        (None, Some(ytime)) | (Some(_), Some(ytime)) => {
+            Some((ytime, Vec2::new(vel.x, -vel.y)))
+        },
+        (None, None) => None,
     }
 }
