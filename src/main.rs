@@ -242,6 +242,11 @@ impl eframe::App for TemplateApp {
                     ui.label("Gravity: ");
                     ui.add(DragValue::new(&mut self.cfg.gravity).speed(1e-2));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Query accel granularity: ");
+                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(2.1..=1000.0).speed(1e-2));
+                });
+
 
                 // TODO: Neglects mass...
                 let potential_energy = self
@@ -346,7 +351,7 @@ impl Sim {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 20.0);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
@@ -360,9 +365,11 @@ impl Sim {
 
             let mut min_particle_indices = None;
             let mut min_boundary_vel_idx = None;
+            //let mut n_neighbors: u64 = 0;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
                 for neighbor in accel.query_neighbors_fast(i, points[i]) {
+                    //n_neighbors += 1;
                 //for neighbor in i + 1..self.particles.len() {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
@@ -395,6 +402,7 @@ impl Sim {
                     }
                 }
             }
+            //dbg!(n_neighbors as f32 / self.particles.len() as f32);
 
             if min_dt < cfg.max_collision_time {
                 // Interact the particles. max_collision_time should be small enough not to neglect any
@@ -456,17 +464,19 @@ struct SimConfig {
     max_collision_time: f32,
     fill_timestep: bool,
     gravity: f32,
+    query_accel_radius_mul: f32,
 }
 
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
-            dimensions: Vec2::new(100., 100.),
+            dimensions: Vec2::splat(1000.),
             dt: 1. / 60.,
             particle_radius: 10.0,
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
+            query_accel_radius_mul: 2.1,
         }
     }
 }
