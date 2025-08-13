@@ -352,12 +352,14 @@ impl Sim {
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
         let query_accel_radius = cfg.particle_radius * cfg.query_accel_radius_mul;
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * cfg.query_accel_radius_mul);
 
         // Particles which are moving too fast to be considered in the normal neighbor lookup and
         // must be considered with N^2 lookup complexity
         // TODO: Query accelerator for space AND time(?!)
+        dbg!(self.particles.iter().map(|particle| particle.vel.length() * cfg.dt).max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)));
         let fast_particles: Vec<usize> = self.particles.iter().enumerate().filter_map(|(idx, particle)| (particle.vel.length() * cfg.dt > query_accel_radius).then(|| idx)).collect();
+        dbg!(fast_particles.len());
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
