@@ -244,8 +244,11 @@ impl eframe::App for TemplateApp {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Query accel granularity: ");
-                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(1.0..=1000.0).speed(1e-2));
+                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(2.1..=1000.0).speed(1e-2));
                 });
+
+                self.cfg.dt = self.cfg.dt.max(self.cfg.max_collision_time);
+                self.cfg.max_collision_time = self.cfg.max_collision_time.min(self.cfg.dt);
 
 
                 // TODO: Neglects mass...
@@ -352,12 +355,12 @@ impl Sim {
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
         let query_accel_radius = cfg.particle_radius * cfg.query_accel_radius_mul;
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * cfg.query_accel_radius_mul);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
 
         // Particles which are moving too fast to be considered in the normal neighbor lookup and
         // must be considered with N^2 lookup complexity
         // TODO: Query accelerator for space AND time(?!)
-        dbg!(self.particles.iter().map(|particle| particle.vel.length() * cfg.dt).max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)));
+        //dbg!(self.particles.iter().map(|particle| particle.vel.length() * cfg.dt).max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)));
         let fast_particles: Vec<usize> = self.particles.iter().enumerate().filter_map(|(idx, particle)| (particle.vel.length() * cfg.dt > query_accel_radius).then(|| idx)).collect();
         dbg!(fast_particles.len());
 
@@ -369,7 +372,7 @@ impl Sim {
             }
             remaining_loops -= 1;
 
-            let mut min_dt = cfg.dt;
+            let mut soonest_intercept_dt = cfg.dt;
 
             let mut min_particle_indices = None;
             let mut min_boundary_vel_idx = None;
@@ -377,7 +380,7 @@ impl Sim {
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
                 for neighbor in accel.query_neighbors_fast(i, points[i]).chain(fast_particles.iter().copied()) {
-                    if neighbor >= i {
+                    if neighbor == i {
                         continue;
                     }
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
@@ -388,9 +391,8 @@ impl Sim {
                         p2.vel - p1.vel,
                         cfg.particle_radius * 2.0,
                     ) {
-                        assert!(intersection_dt >= 0.0);
-                        if intersection_dt < min_dt {
-                            min_dt = intersection_dt;
+                        if intersection_dt < soonest_intercept_dt {
+                            soonest_intercept_dt = intersection_dt;
                             min_particle_indices = Some((i, neighbor));
                             min_boundary_vel_idx = None;
                         }
@@ -404,16 +406,17 @@ impl Sim {
                     cfg.dimensions,
                     cfg.particle_radius,
                 ) {
-                    if boundary_dt < min_dt {
+                    if boundary_dt < soonest_intercept_dt {
                         min_boundary_vel_idx = Some((i, new_vel));
                         min_particle_indices = None;
-                        min_dt = boundary_dt;
+                        soonest_intercept_dt = boundary_dt;
                     }
                 }
             }
             //dbg!(n_neighbors as f32 / self.particles.len() as f32);
 
-            if min_dt < cfg.max_collision_time {
+            assert!(soonest_intercept_dt >= 0.0);
+            if soonest_intercept_dt < cfg.max_collision_time {
                 // Interact the particles. max_collision_time should be small enough not to neglect any
                 // external forces(!)
                 if let Some((i, vel)) = min_boundary_vel_idx {
@@ -438,13 +441,13 @@ impl Sim {
                 }
             } else {
                 // Cowardly move halfway to the goal
-                let dt = min_dt / 2.0;
+                let dt = soonest_intercept_dt * 0.9;
                 timestep_particles(&mut self.particles, dt);
                 for particle in &mut self.particles {
                     particle.vel.y += cfg.gravity * dt; // pixels/frame^2
                 }
                 if remaining_loops == 0 {
-                    dbg!(elapsed, dt);
+                    eprintln!("WARNING: Got stuck");
                 }
                 elapsed += dt;
             }
@@ -453,6 +456,7 @@ impl Sim {
                 break;
             }
         }
+        //dbg!(1000 - remaining_loops);
 
         /*
         // Do collisions
@@ -485,7 +489,7 @@ impl Default for SimConfig {
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
-            query_accel_radius_mul: 1.0,
+            query_accel_radius_mul: 7.0,
         }
     }
 }
@@ -629,7 +633,7 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
     let nx = (cfg.dimensions.x / total_width) as i32;
     let ny = (cfg.dimensions.y / total_width) as i32;
 
-    let rand_range = cfg.particle_radius * 1e-2;
+    let rand_range = cfg.particle_radius * 5e-2;
     let unif = rand::distributions::Uniform::new(-rand_range, rand_range);
 
     let mut rng = rand::thread_rng();
