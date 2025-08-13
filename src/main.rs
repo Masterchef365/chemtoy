@@ -381,9 +381,10 @@ impl Sim {
                     let rel_dir = rel_pos.normalized();
                     let rel_vel = p2.vel - p1.vel;
 
-                    let (v1, v2) = elastic_collision(m1, rel_vel.dot(rel_dir), m2, 0.0);
-                    p2.vel = p1.vel + rel_dir * v1;
-                    p1.vel = p1.vel + rel_dir * v2;
+                    let vel_component = rel_vel.dot(rel_dir);
+                    //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
+                    p2.vel = p1.vel - rel_dir * vel_component / 2.0;
+                    p1.vel = p1.vel + rel_dir * vel_component / 2.0;
                 }
             } else {
                 // Cowardly move halfway to the goal
