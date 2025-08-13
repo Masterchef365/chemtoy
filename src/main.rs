@@ -244,7 +244,7 @@ impl eframe::App for TemplateApp {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Query accel granularity: ");
-                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(2.1..=1000.0).speed(1e-2));
+                    ui.add(DragValue::new(&mut self.cfg.query_accel_radius_mul).range(1.0..=1000.0).speed(1e-2));
                 });
 
 
@@ -351,7 +351,13 @@ impl Sim {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
+        let query_accel_radius = cfg.particle_radius * cfg.query_accel_radius_mul;
         let accel = QueryAccelerator::new(&points, cfg.particle_radius * cfg.query_accel_radius_mul);
+
+        // Particles which are moving too fast to be considered in the normal neighbor lookup and
+        // must be considered with N^2 lookup complexity
+        // TODO: Query accelerator for space AND time(?!)
+        let fast_particles: Vec<usize> = self.particles.iter().enumerate().filter_map(|(idx, particle)| (particle.vel.length() * cfg.dt > query_accel_radius).then(|| idx)).collect();
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
@@ -368,9 +374,10 @@ impl Sim {
             //let mut n_neighbors: u64 = 0;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
-                for neighbor in accel.query_neighbors_fast(i, points[i]) {
-                    //n_neighbors += 1;
-                //for neighbor in i + 1..self.particles.len() {
+                for neighbor in accel.query_neighbors_fast(i, points[i]).chain(fast_particles.iter().copied()) {
+                    if neighbor >= i {
+                        continue;
+                    }
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
                     // TODO: Cache these intersections AND evict the cache ...
@@ -476,7 +483,7 @@ impl Default for SimConfig {
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
-            query_accel_radius_mul: 2.1,
+            query_accel_radius_mul: 1.0,
         }
     }
 }
