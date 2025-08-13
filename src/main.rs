@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use egui::{Color32, DragValue, Pos2, Rect, Stroke, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use query_accel::QueryAccelerator;
+use rand::prelude::Distribution;
 
 mod laws;
 mod query_accel;
@@ -86,6 +87,7 @@ pub struct TemplateApp {
     paused: bool,
     slowdown: usize,
     frame_count: usize,
+    with_jittered_grid: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -157,9 +159,10 @@ impl TemplateApp {
             compounds,
         });
 
-        let sim = Sim::new();
-
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
+
+        let sim = Sim::new();
+        let cfg = SimConfig::default();
 
         Self {
             slowdown: 1,
@@ -167,9 +170,10 @@ impl TemplateApp {
             draw_compound,
             chem,
             sim,
-            cfg: SimConfig::default(),
+            cfg,
             scene_rect: Rect::ZERO,
             paused: false,
+            with_jittered_grid: false,
         }
     }
 }
@@ -201,9 +205,15 @@ impl eframe::App for TemplateApp {
 
             ui.group(|ui| {
                 ui.strong("Simulation");
-                if ui.button("Reset").clicked() {
-                    self.sim = Sim::new();
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Reset").clicked() {
+                        self.sim = Sim::new();
+                        if self.with_jittered_grid {
+                            jittered_grid(&mut self.sim, &self.cfg, self.draw_compound);
+                        }
+                    }
+                    ui.checkbox(&mut self.with_jittered_grid, "with particles");
+                });
 
                 ui.horizontal(|ui| {
                     ui.label("Δt: ");
@@ -233,10 +243,19 @@ impl eframe::App for TemplateApp {
                     ui.add(DragValue::new(&mut self.cfg.gravity).speed(1e-2));
                 });
 
-
                 // TODO: Neglects mass...
-                let potential_energy = self.sim.particles.iter().map(|particle| (self.cfg.dimensions.y - particle.pos.y) * self.cfg.gravity).sum::<f32>();
-                let kinetic_energy = self.sim.particles.iter().map(|particle| particle.vel.length_sq() / 2.0).sum::<f32>();
+                let potential_energy = self
+                    .sim
+                    .particles
+                    .iter()
+                    .map(|particle| (self.cfg.dimensions.y - particle.pos.y) * self.cfg.gravity)
+                    .sum::<f32>();
+                let kinetic_energy = self
+                    .sim
+                    .particles
+                    .iter()
+                    .map(|particle| particle.vel.length_sq() / 2.0)
+                    .sum::<f32>();
                 let total_energy = potential_energy + kinetic_energy;
                 ui.label(format!("Potential energy: {potential_energy:.02}"));
                 ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
@@ -246,7 +265,7 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Scene::new()
-                .zoom_range(1.0..=100.0)
+                .zoom_range(0.0..=100.0)
                 .show(ui, &mut self.scene_rect, |ui| {
                     let (rect, resp) =
                         ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
@@ -581,5 +600,35 @@ fn time_of_intersection_boundary(
         (Some(xtime), None) => Some((xtime, Vec2::new(-vel.x, vel.y))),
         (None, Some(ytime)) | (Some(_), Some(ytime)) => Some((ytime, Vec2::new(vel.x, -vel.y))),
         (None, None) => None,
+    }
+}
+
+fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
+    let margin = cfg.particle_radius;
+    let spacing = margin * 2.0;
+    let total_width = cfg.particle_radius + spacing;
+    let nx = (cfg.dimensions.x / total_width) as i32;
+    let ny = (cfg.dimensions.y / total_width) as i32;
+
+    let rand_range = cfg.particle_radius * 1e-2;
+    let unif = rand::distributions::Uniform::new(-rand_range, rand_range);
+
+    let mut rng = rand::thread_rng();
+    for x in 0..nx {
+        for y in 0..ny {
+            let mut pos = Pos2::new(
+                x as f32 * total_width + margin + cfg.particle_radius,
+                y as f32 * total_width + margin + cfg.particle_radius,
+            );
+
+            pos.x += unif.sample(&mut rng);
+            pos.y += unif.sample(&mut rng);
+
+            sim.particles.push(Particle {
+                compound,
+                pos,
+                vel: Vec2::ZERO,
+            });
+        }
     }
 }
