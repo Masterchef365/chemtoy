@@ -322,7 +322,13 @@ impl Sim {
         //let accel = QueryAccelerator::new(&points, cfg.particle_radius * 100.0);
 
         let mut elapsed = 0.0;
+        let mut remaining_loops = 1000;
         while elapsed < cfg.dt {
+            if remaining_loops == 0 {
+                break;
+            }
+            remaining_loops -= 1;
+
             let mut min_dt = cfg.dt;
 
             let mut min_particle_indices = None;
@@ -381,10 +387,10 @@ impl Sim {
                     let rel_dir = rel_pos.normalized();
                     let rel_vel = p2.vel - p1.vel;
 
-                    let vel_component = rel_vel.dot(rel_dir);
+                    let vel_component = rel_vel.dot(rel_dir).abs();
                     //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
-                    p2.vel = p1.vel - rel_dir * vel_component / 2.0;
-                    p1.vel = p1.vel + rel_dir * vel_component / 2.0;
+                    p2.vel += rel_dir * vel_component;
+                    p1.vel += -rel_dir * vel_component;
                 }
             } else {
                 // Cowardly move halfway to the goal
@@ -392,6 +398,9 @@ impl Sim {
                 timestep_particles(&mut self.particles, dt);
                 for particle in &mut self.particles {
                     particle.vel.y += GRAVITY_FORCE * dt; // pixels/frame^2
+                }
+                if remaining_loops == 0 {
+                    dbg!(elapsed, dt);
                 }
                 elapsed += dt;
             }
@@ -426,7 +435,7 @@ impl Default for SimConfig {
         Self {
             dimensions: Vec2::new(100., 100.),
             dt: 1. / 60.,
-            particle_radius: 5.0,
+            particle_radius: 10.0,
             max_collision_time: 1e-2,
             fill_timestep: true,
         }
