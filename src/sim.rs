@@ -21,6 +21,7 @@ pub struct SimConfig {
     pub max_collision_time: f32,
     pub fill_timestep: bool,
     pub gravity: f32,
+    pub speed_limit: f32,
 }
 
 impl Sim {
@@ -33,7 +34,16 @@ impl Sim {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
-        //let accel = QueryAccelerator::new(&points, cfg.particle_radius * 100.0);
+
+        let speed_limit_sq = cfg.speed_limit.powi(2);
+        for particle in &mut self.particles {
+            if particle.vel.length_sq() > speed_limit_sq {
+                eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
+                particle.vel = particle.vel.normalized() * cfg.speed_limit;
+            }
+        }
+
+        let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
@@ -49,8 +59,8 @@ impl Sim {
             let mut min_boundary_vel_idx = None;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
-                //for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                for neighbor in i + 1..self.particles.len() {
+                for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                //for neighbor in i + 1..self.particles.len() {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
                     // TODO: Cache these intersections AND evict the cache ...
@@ -145,6 +155,7 @@ impl Default for SimConfig {
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
+            speed_limit: 100.0,
         }
     }
 }

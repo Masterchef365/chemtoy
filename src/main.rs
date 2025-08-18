@@ -244,6 +244,11 @@ impl eframe::App for TemplateApp {
                     ui.label("Gravity: ");
                     ui.add(DragValue::new(&mut self.cfg.gravity).speed(1e-2));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Speed limit: ");
+                    ui.add(DragValue::new(&mut self.cfg.speed_limit).speed(1e-2));
+                });
+
 
                 // TODO: Neglects mass...
                 let potential_energy = self
