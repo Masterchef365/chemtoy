@@ -59,7 +59,7 @@ impl Sim {
             let mut min_boundary_vel_idx = None;
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
-                for neighbor in accel.query_neighbors(&points, i, points[i]) {
+                for neighbor in accel.query_neighbors_fast(i, points[i]) {
                 //for neighbor in i + 1..self.particles.len() {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
@@ -155,7 +155,7 @@ impl Default for SimConfig {
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
-            speed_limit: 100.0,
+            speed_limit: 500.0,
         }
     }
 }
