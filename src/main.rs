@@ -136,17 +136,17 @@ impl TemplateApp {
         });
 
         let compounds = Compounds::new(vec![
-            //Compound::new("e⁻", -1, 0.0, &[], &elements),
+            Compound::new("e-", -1, 0.0, &[], &elements),
             Compound::new("H₂", 0, 0.0, &[(hydrogen, 2)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
-            //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
-            //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
+            Compound::new("H₂+", 1, 1484.931, &[(hydrogen, 2)], &elements),
+            Compound::new("H+", 1, 1516.990, &[(hydrogen, 1)], &elements),
             Compound::new("O₂", 0, 0.0, &[(oxygen, 2)], &elements),
             Compound::new("O-", -1, 91.638, &[(oxygen, 1)], &elements),
             Compound::new("O", 0, 231.736, &[(oxygen, 1)], &elements),
-            //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
-            //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
+            Compound::new("O+²", 2, 1164.315, &[(oxygen, 1)], &elements),
+            Compound::new("O+", 1, 1546.912, &[(oxygen, 1)], &elements),
             Compound::new(
                 "OH-",
                 -1,

@@ -314,7 +314,12 @@ fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId])
         }
     }
 
-    formula.0.values().any(|n| *n > 0)
+    // TODO: These are slow! Precompute...
+    let max_n: usize = formula.0.values().sum();
+    let max_charge_mag = laws.compounds.0.iter().map(|c| c.charge.abs()).max().unwrap_or(0);
+    let has_reasonable_charge = charge.abs() <= max_n as i32 * max_charge_mag;
+
+    formula.0.values().any(|n| *n > 0) && has_reasonable_charge
 }
 
 impl Products {
