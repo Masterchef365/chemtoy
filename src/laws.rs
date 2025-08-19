@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
-type Formula = HashMap<ElementId, usize>;
+pub struct Formula(pub BTreeMap<ElementId, usize>);
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ElementId(usize);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -72,15 +72,21 @@ impl Compound {
         formula: &[(ElementId, usize)],
         elements: &Elements,
     ) -> Self {
-        let formula: Formula = formula.iter().copied().collect();
+        let formula = Formula(formula.iter().copied().collect());
 
         Self {
             name: name.to_string(),
             charge,
             std_free_energy,
-            mass: calculate_formula_mass(&formula, elements),
+            mass: formula.mass(&elements),
             formula,
         }
+    }
+
+    pub fn display(&self, elements: &Elements) -> String {
+        let mut s = self.formula.display(elements);
+        print_superscript_number(&mut s, self.charge);
+        s
     }
 }
 
@@ -134,13 +140,6 @@ impl std::ops::Index<CompoundId> for Compounds {
     }
 }
 
-fn calculate_formula_mass(formula: &Formula, elements: &Elements) -> f32 {
-    formula
-        .iter()
-        .map(|(element, n)| *n as f32 * elements[*element].mass)
-        .sum()
-}
-
 impl Compounds {
     pub fn new(compounds: Vec<Compound>) -> Self {
         Self(compounds)
@@ -151,5 +150,63 @@ impl Compounds {
             .iter()
             .enumerate()
             .map(|(idx, comp)| (CompoundId(idx), comp))
+    }
+}
+
+impl Formula {
+    pub fn mass(&self, elements: &Elements) -> f32 {
+        self
+            .0
+            .iter()
+            .map(|(element, n)| *n as f32 * elements[*element].mass)
+            .sum()
+    }
+
+    pub fn display(&self, elements: &Elements) -> String {
+        let mut s = String::new();
+        for (id, n) in self.0.iter() {
+            s.push_str(&elements[*id].symbol);
+            print_subscript_number(&mut s, *n as i32);
+        }
+        s
+    }
+}
+
+fn print_superscript_number(s: &mut String, mut number: i32) {
+    const LUT: [char; 10] = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+    if number == 0 {
+        return;
+    }
+
+    if number < 0 {
+        number *= -1;
+        s.push('-');
+    } else {
+        s.push('+');
+    }
+
+    let number: usize = number as _;
+    for i in (0..number.ilog10()+1).rev() {
+        let v = number / 10_usize.pow(i);
+        s.push(LUT[v as usize % 10]);
+    }
+}
+
+
+fn print_subscript_number(s: &mut String, mut number: i32) {
+    const LUT: [char; 10] = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+    if number < 0 {
+        number *= -1;
+        s.push('-');
+    }
+
+    if number == 1 {
+        return;
+    }
+
+    let number: usize = number as _;
+    for i in (0..number.max(1).ilog10()+1).rev() {
+        let v = number / 10_usize.pow(i);
+        s.push(LUT[v as usize % 10]);
     }
 }

@@ -90,6 +90,14 @@ pub struct TemplateApp {
     slowdown: usize,
     frame_count: usize,
     with_jittered_grid: bool,
+
+    screen: Screen,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum Screen {
+    Simulation,
+    ChemBook,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -128,14 +136,17 @@ impl TemplateApp {
         });
 
         let compounds = Compounds::new(vec![
-            Compound::new("H₂", 1, 0.0, &[(hydrogen, 2)], &elements),
+            Compound::new("H₂", 0, 0.0, &[(hydrogen, 2)], &elements),
             Compound::new("H⁻", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
+
             //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
             //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
-            Compound::new("O₂", 0, 0.0, &[(hydrogen, 2)], &elements),
-            Compound::new("O⁻", -1, 91.638, &[(hydrogen, 1)], &elements),
-            Compound::new("O", 0, 231.736, &[(hydrogen, 1)], &elements),
+
+            Compound::new("O₂", 0, 0.0, &[(oxygen, 2)], &elements),
+            Compound::new("O⁻", -1, 91.638, &[(oxygen, 1)], &elements),
+            Compound::new("O", 0, 231.736, &[(oxygen, 1)], &elements),
+
             //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
             //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
             Compound::new(
@@ -176,6 +187,7 @@ impl TemplateApp {
             scene_rect: Rect::ZERO,
             paused: false,
             with_jittered_grid: false,
+            screen: Screen::ChemBook,
         }
     }
 }
@@ -189,7 +201,24 @@ impl eframe::App for TemplateApp {
     */
 
     /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("screen")
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.screen, Screen::Simulation, "Simulation");
+                    ui.selectable_value(&mut self.screen, Screen::ChemBook, "Chem Book");
+                });
+            });
+
+        match self.screen {
+            Screen::Simulation => self.update_simulation(ctx, frame),
+            Screen::ChemBook => self.update_chembook(ctx, frame),
+        }
+    }
+}
+
+impl TemplateApp {
+    fn update_simulation(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut single_step = false;
 
         egui::SidePanel::left("cfg").show(ctx, |ui| {
@@ -330,6 +359,32 @@ impl eframe::App for TemplateApp {
             ctx.request_repaint();
             self.frame_count += 1;
         }
+    }
+
+
+    fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Compounds");
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::Grid::new("compounds").num_columns(5).striped(true).show(ui, |ui| {
+                    ui.strong("Index");
+                    ui.strong("Name");
+                    ui.strong("Formula");
+                    ui.strong("Mass");
+                    ui.strong("Charge");
+                    ui.end_row();
+
+                    for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
+                        ui.label(format!("{idx}"));
+                        ui.label(&compound.name);
+                        ui.label(compound.display(&self.chem.laws.elements));
+                        ui.label(format!("{}", &compound.mass));
+                        ui.label(format!("{}", &compound.charge));
+                        ui.end_row();
+                    }
+                });
+            });
+        });
     }
 }
 
