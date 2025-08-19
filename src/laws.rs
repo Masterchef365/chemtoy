@@ -1,5 +1,6 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
+#[derive(Clone, Debug)]
 pub struct Formula(pub BTreeMap<ElementId, usize>);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -7,16 +8,19 @@ pub struct ElementId(usize);
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CompoundId(usize);
 
+#[derive(Clone, Debug)]
 pub struct Laws {
     pub elements: Elements,
     pub compounds: Compounds,
 }
 
+#[derive(Clone, Debug)]
 pub struct Element {
     pub symbol: String,
     pub mass: f32,
 }
 
+#[derive(Clone, Debug)]
 pub struct Compound {
     pub name: String,
     pub formula: Formula,
@@ -25,6 +29,7 @@ pub struct Compound {
     pub mass: f32,
 }
 
+#[derive(Clone, Debug)]
 pub struct Derivations {
     /// For each compound, which other sets of compounds could be formed?
     pub decompositions: HashMap<CompoundId, ProductSet>,
@@ -35,23 +40,26 @@ pub struct Derivations {
 }
 
 /// Product set. Sorted by total_std_free_energy.
+#[derive(Clone, Debug)]
 pub struct ProductSet(pub Vec<Products>);
 
+#[derive(Clone, Debug)]
 pub struct Products {
     /// How many of each compound (238099, 2) -> 2 H2O
     pub compounds: BTreeMap<CompoundId, usize>,
     pub total_std_free_energy: f32,
 }
 
+#[derive(Clone, Debug)]
 pub struct ChemicalWorld {
     pub laws: Laws,
     pub deriv: Derivations,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct Compounds(pub Vec<Compound>);
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct Elements(pub Vec<Element>);
 
 impl Element {
@@ -154,8 +162,7 @@ impl Compounds {
 
 impl Formula {
     pub fn mass(&self, elements: &Elements) -> f32 {
-        self
-            .0
+        self.0
             .iter()
             .map(|(element, n)| *n as f32 * elements[*element].mass)
             .sum()
@@ -185,12 +192,11 @@ fn print_superscript_number(s: &mut String, mut number: i32) {
     }
 
     let number: usize = number as _;
-    for i in (0..number.ilog10()+1).rev() {
+    for i in (0..number.ilog10() + 1).rev() {
         let v = number / 10_usize.pow(i);
         s.push(LUT[v as usize % 10]);
     }
 }
-
 
 fn print_subscript_number(s: &mut String, mut number: i32) {
     const LUT: [char; 10] = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
@@ -204,8 +210,44 @@ fn print_subscript_number(s: &mut String, mut number: i32) {
     }
 
     let number: usize = number as _;
-    for i in (0..number.max(1).ilog10()+1).rev() {
+    for i in (0..number.max(1).ilog10() + 1).rev() {
         let v = number / 10_usize.pow(i);
         s.push(LUT[v as usize % 10]);
     }
 }
+
+fn compute_decompositions(laws: &Laws) -> HashMap<CompoundId, ProductSet> {
+    laws.compounds
+        .enumerate()
+        .map(|(compound_id, _)| {
+            (
+                compound_id,
+                compute_decompositions_for_compound(laws, compound_id),
+            )
+        })
+        .collect()
+}
+
+fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> ProductSet {
+    let compound = &laws.compounds[compound_id];
+
+    // All compounds which only contain elements from our compound, and fewer or equal
+    // amounts of each (can't have negative amounts in a formula! ... or can you??)
+    let relevant_compounds: Vec<(CompoundId, Compound)> = laws
+        .compounds
+        .enumerate()
+        .filter_map(|(other_id, other_comp)| {
+            other_comp
+                .formula
+                .0
+                .iter()
+                .all(|(element, n)| Some(n) >= compound.formula.0.get(&element))
+                .then(|| (other_id, other_comp.clone()))
+        })
+        .collect();
+
+    for (element, n) in compound.formula.0.iter() {}
+    todo!()
+}
+
+//fn find_decompositions_rec(laws: &Laws,
