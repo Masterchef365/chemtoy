@@ -6,9 +6,9 @@ use query_accel::QueryAccelerator;
 use rand::prelude::Distribution;
 use sim::*;
 
-mod sim;
 mod laws;
 mod query_accel;
+mod sim;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -139,14 +139,11 @@ impl TemplateApp {
             Compound::new("H₂", 0, 0.0, &[(hydrogen, 2)], &elements),
             Compound::new("H⁻", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
-
             //Compound::new("H₂⁺", 1, 1484.931, &[(hydrogen, 2)]),
             //Compound::new("H⁺", 1, 1516.990, &[(hydrogen, 1)]),
-
             Compound::new("O₂", 0, 0.0, &[(oxygen, 2)], &elements),
             Compound::new("O⁻", -1, 91.638, &[(oxygen, 1)], &elements),
             Compound::new("O", 0, 231.736, &[(oxygen, 1)], &elements),
-
             //Compound::new("O⁺²", 1, 1164.315, &[(hydrogen, 1)]),
             //Compound::new("O⁺", 1, 1546.912, &[(hydrogen, 1)]),
             Compound::new(
@@ -202,13 +199,12 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("screen")
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.screen, Screen::Simulation, "Simulation");
-                    ui.selectable_value(&mut self.screen, Screen::ChemBook, "Chem Book");
-                });
+        egui::TopBottomPanel::top("screen").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.screen, Screen::Simulation, "Simulation");
+                ui.selectable_value(&mut self.screen, Screen::ChemBook, "Chem Book");
             });
+        });
 
         match self.screen {
             Screen::Simulation => self.update_simulation(ctx, frame),
@@ -277,7 +273,6 @@ impl TemplateApp {
                     ui.label("Speed limit: ");
                     ui.add(DragValue::new(&mut self.cfg.speed_limit).speed(1e-2));
                 });
-
 
                 // TODO: Neglects mass...
                 let potential_energy = self
@@ -361,29 +356,64 @@ impl TemplateApp {
         }
     }
 
-
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Compounds");
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                egui::Grid::new("compounds").num_columns(5).striped(true).show(ui, |ui| {
-                    ui.strong("Index");
-                    ui.strong("Name");
-                    ui.strong("Formula");
-                    ui.strong("Mass");
-                    ui.strong("Charge");
-                    ui.end_row();
+            egui::ScrollArea::vertical()
+                .id_salt("compounds")
+                .show(ui, |ui| {
+                    egui::Grid::new("compounds")
+                        .num_columns(5)
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.strong("Index");
+                            ui.strong("Symbol");
+                            ui.strong("Formula");
+                            ui.strong("Mass");
+                            ui.strong("Charge");
+                            ui.end_row();
 
-                    for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
-                        ui.label(format!("{idx}"));
-                        ui.label(&compound.name);
-                        ui.label(compound.display(&self.chem.laws.elements));
-                        ui.label(format!("{}", &compound.mass));
-                        ui.label(format!("{}", &compound.charge));
-                        ui.end_row();
+                            for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
+                                ui.label(format!("{idx}"));
+                                ui.label(&compound.name);
+                                ui.label(compound.display(&self.chem.laws.elements));
+                                ui.label(format!("{}", &compound.mass));
+                                ui.label(format!("{}", &compound.charge));
+                                ui.end_row();
+                            }
+                        });
+                });
+
+            ui.heading("Decompositions");
+            egui::ScrollArea::vertical()
+                .id_salt("decomp")
+                .show(ui, |ui| {
+                    for (compound_id, decompositions) in &self.chem.deriv.decompositions {
+                        let compound = &self.chem.laws.compounds[*compound_id];
+                        ui.collapsing(&compound.name, |ui| {
+                            egui::Grid::new("decomp").striped(true).show(ui, |ui| {
+                                for products in decompositions.0.iter() {
+                                    ui.horizontal(|ui| {
+                                        ui.label("->");
+                                        for (i, (other_id, n)) in
+                                            products.compounds.iter().enumerate().rev()
+                                        {
+                                            let other_compound =
+                                                &self.chem.laws.compounds[*other_id];
+                                            ui.label(n.to_string());
+                                            ui.label(" ");
+                                            ui.label(&other_compound.name);
+                                            if i != 0 {
+                                                ui.label(" + ");
+                                            }
+                                        }
+                                    });
+                                    ui.end_row();
+                                }
+                            });
+                        });
                     }
                 });
-            });
         });
     }
 }

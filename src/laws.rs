@@ -4,8 +4,7 @@ pub struct Formula(pub BTreeMap<ElementId, usize>);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ElementId(usize);
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CompoundId(usize);
 
 pub struct Laws {
@@ -36,11 +35,11 @@ pub struct Derivations {
 }
 
 /// Product set. Sorted by total_std_free_energy.
-pub struct ProductSet(Vec<Products>);
+pub struct ProductSet(pub Vec<Products>);
 
 pub struct Products {
     /// How many of each compound (238099, 2) -> 2 H2O
-    pub compounds: HashMap<CompoundId, usize>,
+    pub compounds: BTreeMap<CompoundId, usize>,
     pub total_std_free_energy: f32,
 }
 
