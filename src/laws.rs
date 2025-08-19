@@ -40,10 +40,10 @@ pub struct Derivations {
 }
 
 /// Product set. Sorted by total_std_free_energy.
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct ProductSet(pub Vec<Products>);
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Products {
     /// How many of each compound (238099, 2) -> 2 H2O
     pub compounds: BTreeMap<CompoundId, usize>,
@@ -112,7 +112,7 @@ impl Derivations {
             //reactions: todo!(),
             //decompositions: todo!(),
             reactions: HashMap::new(),
-            decompositions: HashMap::new(),
+            decompositions: compute_decompositions(laws),
         }
     }
 }
@@ -236,18 +236,98 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
     let relevant_compounds: Vec<(CompoundId, Compound)> = laws
         .compounds
         .enumerate()
+        .filter(|(other_id, _)| other_id != &compound_id)
         .filter_map(|(other_id, other_comp)| {
             other_comp
                 .formula
                 .0
                 .iter()
-                .all(|(element, n)| Some(n) >= compound.formula.0.get(&element))
+                .all(|(element, n)| Some(n) <= compound.formula.0.get(&element))
                 .then(|| (other_id, other_comp.clone()))
         })
         .collect();
 
-    for (element, n) in compound.formula.0.iter() {}
-    todo!()
+    let mut output = Vec::new();
+    find_decompositions_rec(laws, compound, &relevant_compounds, &mut output, &mut vec![]);
+    ProductSet::from_products(output)
 }
 
-//fn find_decompositions_rec(laws: &Laws,
+fn find_decompositions_rec(
+    laws: &Laws,
+    compound: &Compound,
+    relevant_compounds: &[(CompoundId, Compound)],
+    output: &mut Vec<Products>,
+    stack: &mut Vec<CompoundId>,
+) {
+    // TODO: Slow lol
+    if !check_stack_continue(laws, compound.formula.clone(), stack) {
+        if check_stack(laws, compound.formula.clone(), compound.charge, stack) {
+            output.push(Products::from_compound_ids(&stack, laws));
+        }
+        return;
+    }
+
+    for (relevant_compound_id, _) in relevant_compounds {
+        stack.push(*relevant_compound_id);
+        find_decompositions_rec(laws, compound, relevant_compounds, output, stack);
+        stack.pop();
+    }
+}
+
+/// Check that "lhs" can decompose to "stack"
+fn check_stack(laws: &Laws, mut formula: Formula, mut charge: i32, stack: &[CompoundId]) -> bool {
+    for compound_id in stack {
+        for (element, n) in &mut formula.0 {
+            let compound = &laws.compounds[*compound_id];
+            let required = compound.formula.0.get(element).copied().unwrap_or(0);
+            if let Some(new_n) = n.checked_sub(required) {
+                *n = new_n;
+            } else {
+                return false;
+            }
+            charge -= compound.charge;
+        }
+    }
+
+    formula.0.values().all(|n| *n == 0) && charge == 0
+}
+
+/// Check that "lhs" can decompose to "stack"
+fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId]) -> bool {
+    for compound_id in stack {
+        for (element, n) in &mut formula.0 {
+            let compound = &laws.compounds[*compound_id];
+            let required = compound.formula.0.get(element).copied().unwrap_or(0);
+            if let Some(new_n) = n.checked_sub(required) {
+                *n = new_n;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    formula.0.values().any(|n| *n > 0)
+}
+
+impl ProductSet {
+    pub fn from_products(mut products: Vec<Products>) -> Self {
+        products.sort_by(|a, b| {
+            a.total_std_free_energy
+                .partial_cmp(&b.total_std_free_energy)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        ProductSet(products)
+    }
+}
+
+impl Products {
+    fn from_compound_ids(ids: &[CompoundId], laws: &Laws) -> Self {
+        let mut inst = Self::default();
+        for id in ids {
+            let compound = &laws.compounds[*id];
+            inst.total_std_free_energy += compound.std_free_energy;
+            *inst.compounds.entry(*id).or_default() += 1;
+        }
+        inst
+    }
+}

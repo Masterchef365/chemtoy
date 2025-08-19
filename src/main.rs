@@ -154,7 +154,7 @@ impl TemplateApp {
                 &elements,
             ),
             Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
-            Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
+            //Compound::new("H₂O", 0, -228.582, &[(hydrogen, 2), (oxygen, 1)], &elements),
             Compound::new(
                 "H₂O₂",
                 0,
