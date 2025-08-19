@@ -191,6 +191,10 @@ fn print_superscript_number(s: &mut String, mut number: i32) {
         s.push('+');
     }
 
+    if number == 1 {
+        return;
+    }
+
     let number: usize = number as _;
     for i in (0..number.ilog10() + 1).rev() {
         let v = number / 10_usize.pow(i);
@@ -277,15 +281,16 @@ fn find_decompositions_rec(
 /// Check that "lhs" can decompose to "stack"
 fn check_stack(laws: &Laws, mut formula: Formula, mut charge: i32, stack: &[CompoundId]) -> bool {
     for compound_id in stack {
+        let compound = &laws.compounds[*compound_id];
+        charge -= compound.charge;
+
         for (element, n) in &mut formula.0 {
-            let compound = &laws.compounds[*compound_id];
             let required = compound.formula.0.get(element).copied().unwrap_or(0);
             if let Some(new_n) = n.checked_sub(required) {
                 *n = new_n;
             } else {
                 return false;
             }
-            charge -= compound.charge;
         }
     }
 
@@ -294,9 +299,12 @@ fn check_stack(laws: &Laws, mut formula: Formula, mut charge: i32, stack: &[Comp
 
 /// Check that "lhs" can decompose to "stack"
 fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId]) -> bool {
+    let mut charge = 0;
     for compound_id in stack {
+        let compound = &laws.compounds[*compound_id];
+        charge -= compound.charge;
+
         for (element, n) in &mut formula.0 {
-            let compound = &laws.compounds[*compound_id];
             let required = compound.formula.0.get(element).copied().unwrap_or(0);
             if let Some(new_n) = n.checked_sub(required) {
                 *n = new_n;
