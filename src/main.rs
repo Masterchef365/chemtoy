@@ -390,9 +390,15 @@ impl TemplateApp {
                 .show(ui, |ui| {
                     for (compound_id, decompositions) in &self.chem.deriv.decompositions {
                         let compound = &self.chem.laws.compounds[*compound_id];
-                        ui.collapsing(&compound.name, |ui| {
+                        let header = format!("{} [{} kJ/mol]", compound.name, compound.std_free_energy);
+                        ui.collapsing(header, |ui| {
                             egui::Grid::new("decomp").striped(true).show(ui, |ui| {
+                                ui.strong("Free energy");
+                                ui.strong("Products");
+                                ui.end_row();
+
                                 for products in decompositions.0.iter() {
+                                    ui.label(format!("{}", products.total_std_free_energy));
                                     ui.horizontal(|ui| {
                                         ui.label("->");
                                         for (i, (other_id, n)) in

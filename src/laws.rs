@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, BTreeSet};
 
 #[derive(Clone, Debug)]
 pub struct Formula(pub BTreeMap<ElementId, usize>);
@@ -41,7 +41,7 @@ pub struct Derivations {
 
 /// Product set. Sorted by total_std_free_energy.
 #[derive(Default, Clone, Debug)]
-pub struct ProductSet(pub Vec<Products>);
+pub struct ProductSet(pub BTreeSet<Products>);
 
 #[derive(Default, Clone, Debug)]
 pub struct Products {
@@ -247,22 +247,22 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
         })
         .collect();
 
-    let mut output = Vec::new();
+    let mut output = ProductSet::default();
     find_decompositions_rec(laws, compound, &relevant_compounds, &mut output, &mut vec![]);
-    ProductSet::from_products(output)
+    output
 }
 
+// TODO: Slow lol
 fn find_decompositions_rec(
     laws: &Laws,
     compound: &Compound,
     relevant_compounds: &[(CompoundId, Compound)],
-    output: &mut Vec<Products>,
+    output: &mut ProductSet,
     stack: &mut Vec<CompoundId>,
 ) {
-    // TODO: Slow lol
     if !check_stack_continue(laws, compound.formula.clone(), stack) {
         if check_stack(laws, compound.formula.clone(), compound.charge, stack) {
-            output.push(Products::from_compound_ids(&stack, laws));
+            output.0.insert(Products::from_compound_ids(&stack, laws));
         }
         return;
     }
@@ -309,17 +309,6 @@ fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId])
     formula.0.values().any(|n| *n > 0)
 }
 
-impl ProductSet {
-    pub fn from_products(mut products: Vec<Products>) -> Self {
-        products.sort_by(|a, b| {
-            a.total_std_free_energy
-                .partial_cmp(&b.total_std_free_energy)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        ProductSet(products)
-    }
-}
-
 impl Products {
     fn from_compound_ids(ids: &[CompoundId], laws: &Laws) -> Self {
         let mut inst = Self::default();
@@ -329,5 +318,25 @@ impl Products {
             *inst.compounds.entry(*id).or_default() += 1;
         }
         inst
+    }
+}
+
+impl PartialEq for Products {
+    fn eq(&self, other: &Self) -> bool {
+        self.compounds == other.compounds
+    }
+}
+
+impl Eq for Products {}
+
+impl PartialOrd for Products {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.total_std_free_energy.partial_cmp(&other.total_std_free_energy)
+    }
+}
+
+impl Ord for Products {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(&other).unwrap()
     }
 }
