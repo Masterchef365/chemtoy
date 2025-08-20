@@ -4,9 +4,10 @@ use std::collections::{BTreeMap, HashMap, BTreeSet};
 pub struct Formula(pub BTreeMap<ElementId, usize>);
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ElementId(usize);
+pub struct ElementId(pub usize);
+
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CompoundId(usize);
+pub struct CompoundId(pub usize);
 
 #[derive(Clone, Debug)]
 pub struct Laws {

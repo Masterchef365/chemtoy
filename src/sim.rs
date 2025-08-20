@@ -142,6 +142,13 @@ impl Sim {
 
         // Add gravity
     }
+
+    /// Returns true if a particle can be placed here
+    /// TODO: slow!
+    pub fn area_is_clear(&mut self, cfg: &SimConfig, pos: Pos2) -> bool {
+        let thresh_sq = (cfg.particle_radius * 2.0).powi(2);
+        self.particles.iter().all(|p| p.pos.distance_sq(pos) > thresh_sq)
+    }
 }
 
 impl Default for SimConfig {

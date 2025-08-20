@@ -346,6 +346,23 @@ impl TemplateApp {
             });
 
             ui.group(|ui| {
+                ui.strong("Drawing");
+                ui.horizontal(|ui| {
+                    ui.label("Compound: ");
+                    egui::ComboBox::new(
+                        "compound",
+                        &self.chem.laws.compounds[self.draw_compound].name,
+                    )
+                    .show_index(
+                        ui,
+                        &mut self.draw_compound.0,
+                        self.chem.laws.compounds.0.len(),
+                        |i| self.chem.laws.compounds.0[i].name.clone(),
+                    )
+                });
+            });
+
+            ui.group(|ui| {
                 ui.strong("Simulation");
                 ui.horizontal(|ui| {
                     if ui.button("Reset").clicked() {
@@ -451,12 +468,15 @@ impl TemplateApp {
 
                     //if let Some(drag_pos) = resp.interact_pointer_pos() {
                     if let Some(interact_pos) = resp.interact_pointer_pos() {
-                        if resp.clicked() {
-                            self.sim.particles.push(Particle {
-                                compound: self.draw_compound,
-                                pos: interact_pos - rect.min.to_vec2(),
-                                vel: resp.drag_delta(),
-                            });
+                        if resp.clicked() || resp.dragged() {
+                            let pos = interact_pos - rect.min.to_vec2();
+                            if self.sim.area_is_clear(&self.cfg, pos) {
+                                self.sim.particles.push(Particle {
+                                    compound: self.draw_compound,
+                                    pos,
+                                    vel: resp.drag_delta(),
+                                });
+                            }
                         }
                     }
                 });
