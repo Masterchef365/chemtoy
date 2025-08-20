@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hasher};
 
 use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
@@ -616,10 +616,15 @@ fn draw_particles(
     vis_cfg: &VisualizationConfig,
 ) {
     for particle in particles {
+        let mut hash = std::hash::DefaultHasher::new();
+        hash.write_usize(particle.compound.0);
+        let bytes = hash.finish().to_le_bytes();
+        let color = Color32::from_rgb(bytes[0], bytes[1], bytes[2]);
+
         ui.painter().circle_filled(
             particle.pos + rect.min.to_vec2(),
             cfg.particle_radius,
-            Color32::GRAY,
+            color,
         );
         let compound = &laws.compounds[particle.compound];
         ui.painter().text(

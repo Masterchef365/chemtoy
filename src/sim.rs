@@ -156,7 +156,7 @@ impl Sim {
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
-            dimensions: Vec2::new(100., 100.),
+            dimensions: Vec2::new(1000., 1000.),
             dt: 1. / 60.,
             particle_radius: 20.0,
             max_collision_time: 1e-2,
