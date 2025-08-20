@@ -139,29 +139,81 @@ impl TemplateApp {
             symbol: "O".into(),
         });
 
-
         let compounds = Compounds::new(vec![
-            Compound::new("e-", -1, 0.0, &[], &elements),
-
+            //Compound::new("e-", -1, 0.0, &[], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H+", 1, 1516.99, &[(hydrogen, 1)], &elements),
             Compound::new("H2+", 1, 1484.931, &[(hydrogen, 2)], &elements),
             Compound::new("H2-", -1, 237.732, &[(hydrogen, 2)], &elements),
-            Compound::new("H2N", 0, 199.846, &[(hydrogen, 2), (nitrogen, 1)], &elements),
-            Compound::new("H2N2", 0, 243.88, &[(hydrogen, 2), (nitrogen, 2)], &elements),
+            Compound::new(
+                "H2N",
+                0,
+                199.846,
+                &[(hydrogen, 2), (nitrogen, 1)],
+                &elements,
+            ),
+            Compound::new(
+                "H2N2",
+                0,
+                243.88,
+                &[(hydrogen, 2), (nitrogen, 2)],
+                &elements,
+            ),
             Compound::new("H2O", 0, -237.141, &[(hydrogen, 2), (oxygen, 1)], &elements),
-            Compound::new("H2O2", 0, -105.445, &[(hydrogen, 2), (oxygen, 2)], &elements),
-            Compound::new("H3N", 0, -16.367, &[(hydrogen, 3), (nitrogen, 1)], &elements),
+            Compound::new(
+                "H2O2",
+                0,
+                -105.445,
+                &[(hydrogen, 2), (oxygen, 2)],
+                &elements,
+            ),
+            Compound::new(
+                "H3N",
+                0,
+                -16.367,
+                &[(hydrogen, 3), (nitrogen, 1)],
+                &elements,
+            ),
             Compound::new("H3O+", 1, 606.607, &[(hydrogen, 3), (oxygen, 1)], &elements),
-            Compound::new("H4N2", 0, 159.232, &[(hydrogen, 4), (nitrogen, 2)], &elements),
+            Compound::new(
+                "H4N2",
+                0,
+                159.232,
+                &[(hydrogen, 4), (nitrogen, 2)],
+                &elements,
+            ),
             Compound::new("HN", 0, 370.565, &[(hydrogen, 1), (nitrogen, 1)], &elements),
-            Compound::new("HNO", 0, 112.398, &[(hydrogen, 1), (nitrogen, 1), (oxygen, 1)], &elements),
-            Compound::new("HNO2", 0, -43.934, &[(hydrogen, 1), (nitrogen, 1), (oxygen, 2)], &elements),
-            Compound::new("HNO3", 0, -73.941, &[(hydrogen, 1), (nitrogen, 1), (oxygen, 3)], &elements),
+            Compound::new(
+                "HNO",
+                0,
+                112.398,
+                &[(hydrogen, 1), (nitrogen, 1), (oxygen, 1)],
+                &elements,
+            ),
+            Compound::new(
+                "HNO2",
+                0,
+                -43.934,
+                &[(hydrogen, 1), (nitrogen, 1), (oxygen, 2)],
+                &elements,
+            ),
+            Compound::new(
+                "HNO3",
+                0,
+                -73.941,
+                &[(hydrogen, 1), (nitrogen, 1), (oxygen, 3)],
+                &elements,
+            ),
             Compound::new("HO", 0, 34.277, &[(hydrogen, 1), (oxygen, 1)], &elements),
             Compound::new("HO+", 1, 1306.437, &[(hydrogen, 1), (oxygen, 1)], &elements),
-            Compound::new("HO-", -1, -138.698, &[(hydrogen, 1), (oxygen, 1)], &elements),
+            Compound::new(
+                "HO-",
+                -1,
+                -138.698,
+                &[(hydrogen, 1), (oxygen, 1)],
+                &elements,
+            ),
             Compound::new("HO2", 0, 14.43, &[(hydrogen, 1), (oxygen, 2)], &elements),
             Compound::new("N", 0, 455.54, &[(nitrogen, 1)], &elements),
             Compound::new("N+", 1, 1856.796, &[(nitrogen, 1)], &elements),
@@ -169,7 +221,13 @@ impl TemplateApp {
             Compound::new("N2+", 1, 1501.44, &[(nitrogen, 2)], &elements),
             Compound::new("N2-", -1, 151.015, &[(nitrogen, 2)], &elements),
             Compound::new("N2O", 0, 104.179, &[(nitrogen, 2), (oxygen, 1)], &elements),
-            Compound::new("N2O+", 1, 1345.131, &[(nitrogen, 2), (oxygen, 1)], &elements),
+            Compound::new(
+                "N2O+",
+                1,
+                1345.131,
+                &[(nitrogen, 2), (oxygen, 1)],
+                &elements,
+            ),
             Compound::new("N2O3", 0, 139.727, &[(nitrogen, 2), (oxygen, 3)], &elements),
             Compound::new("N2O4", 0, 97.787, &[(nitrogen, 2), (oxygen, 4)], &elements),
             Compound::new("N2O5", 0, 118.013, &[(nitrogen, 2), (oxygen, 5)], &elements),
@@ -177,7 +235,13 @@ impl TemplateApp {
             Compound::new("NO", 0, 86.6, &[(nitrogen, 1), (oxygen, 1)], &elements),
             Compound::new("NO+", 1, 983.978, &[(nitrogen, 1), (oxygen, 1)], &elements),
             Compound::new("NO2", 0, 51.258, &[(nitrogen, 1), (oxygen, 2)], &elements),
-            Compound::new("NO2-", -1, -177.273, &[(nitrogen, 1), (oxygen, 2)], &elements),
+            Compound::new(
+                "NO2-",
+                -1,
+                -177.273,
+                &[(nitrogen, 1), (oxygen, 2)],
+                &elements,
+            ),
             Compound::new("NO3", 0, 116.121, &[(nitrogen, 1), (oxygen, 3)], &elements),
             Compound::new("O", 0, 231.736, &[(oxygen, 1)], &elements),
             Compound::new("O+", 1, 1546.912, &[(oxygen, 1)], &elements),
@@ -185,7 +249,6 @@ impl TemplateApp {
             Compound::new("O2+", 1, 1164.315, &[(oxygen, 2)], &elements),
             Compound::new("O2-", -1, -43.663, &[(oxygen, 2)], &elements),
             Compound::new("O3", 0, 163.184, &[(oxygen, 3)], &elements),
-
             /*
             Compound::new("H₂", 0, 0.0, &[(hydrogen, 2)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
@@ -214,7 +277,7 @@ impl TemplateApp {
                 &elements,
             ),
             */
-            ]);
+        ]);
 
         let chem = ChemicalWorld::from_laws(Laws {
             elements,
@@ -298,9 +361,9 @@ impl TemplateApp {
                     ui.label("Δt: ");
                     ui.add(
                         DragValue::new(&mut self.cfg.dt)
-                        .speed(1e-3)
-                        .range(0.0..=f32::MAX)
-                        .suffix(" units/step"),
+                            .speed(1e-3)
+                            .range(0.0..=f32::MAX)
+                            .suffix(" units/step"),
                     );
                 });
                 ui.horizontal(|ui| {
@@ -397,114 +460,115 @@ impl TemplateApp {
                         }
                     }
                 });
-                });
+        });
 
-            if !self.paused || single_step {
-                if self.frame_count % self.slowdown.max(1) == 0 {
-                    self.sim.step(&self.cfg, &self.chem);
-                }
-                ctx.request_repaint();
-                self.frame_count += 1;
+        if !self.paused || single_step {
+            if self.frame_count % self.slowdown.max(1) == 0 {
+                self.sim.step(&self.cfg, &self.chem);
             }
+            ctx.request_repaint();
+            self.frame_count += 1;
         }
+    }
 
-        fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-            egui::SidePanel::right("stuff").show(ctx, |ui| {
-                ui.heading("Compounds");
-                egui::ScrollArea::vertical()
-                    .id_salt("compounds")
-                    .show(ui, |ui| {
-                        egui::Grid::new("compounds")
-                            .num_columns(5)
-                            .striped(true)
-                            .show(ui, |ui| {
-                                ui.strong("Index");
-                                ui.strong("Symbol");
-                                ui.strong("Formula");
-                                ui.strong("Mass");
-                                ui.strong("Charge");
+    fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::SidePanel::right("stuff").show(ctx, |ui| {
+            ui.heading("Compounds");
+            egui::ScrollArea::vertical()
+                .id_salt("compounds")
+                .show(ui, |ui| {
+                    egui::Grid::new("compounds")
+                        .num_columns(5)
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.strong("Index");
+                            ui.strong("Symbol");
+                            ui.strong("Formula");
+                            ui.strong("Mass");
+                            ui.strong("Charge");
+                            ui.strong("Free energy");
+                            ui.end_row();
+
+                            for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
+                                ui.label(format!("{idx}"));
+                                ui.label(&compound.name);
+                                ui.label(compound.display(&self.chem.laws.elements));
+                                ui.label(format!("{} Au", &compound.mass));
+                                ui.label(format!("{}", &compound.charge));
+                                ui.label(format!("{} kJ/mol", &compound.std_free_energy));
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Decompositions");
+            egui::ScrollArea::vertical()
+                .id_salt("decomp")
+                .show(ui, |ui| {
+                    for (compound_id, decompositions) in &self.chem.deriv.decompositions {
+                        let compound = &self.chem.laws.compounds[*compound_id];
+                        let header =
+                            format!("{} [{} kJ/mol]", compound.name, compound.std_free_energy);
+                        ui.collapsing(header, |ui| {
+                            egui::Grid::new("decomp").striped(true).show(ui, |ui| {
                                 ui.strong("Free energy");
+                                ui.strong("Products");
                                 ui.end_row();
 
-                                for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
-                                    ui.label(format!("{idx}"));
-                                    ui.label(&compound.name);
-                                    ui.label(compound.display(&self.chem.laws.elements));
-                                    ui.label(format!("{} Au", &compound.mass));
-                                    ui.label(format!("{}", &compound.charge));
-                                    ui.label(format!("{} kJ/mol", &compound.std_free_energy));
+                                for products in decompositions.0.iter() {
+                                    ui.label(format!("{}", products.total_std_free_energy));
+                                    ui.horizontal(|ui| {
+                                        ui.label("->");
+                                        for (i, (other_id, n)) in
+                                            products.compounds.iter().enumerate().rev()
+                                        {
+                                            let other_compound =
+                                                &self.chem.laws.compounds[*other_id];
+                                            ui.label(n.to_string());
+                                            ui.label(&other_compound.name);
+                                            if i != 0 {
+                                                ui.label(" + ");
+                                            }
+                                        }
+                                    });
                                     ui.end_row();
                                 }
                             });
-                    });
+                        });
+                    }
                 });
+        });
+    }
+}
 
-            egui::CentralPanel::default().show(ctx, |ui| {
-                ui.heading("Decompositions");
-                egui::ScrollArea::vertical()
-                    .id_salt("decomp")
-                    .show(ui, |ui| {
-                        for (compound_id, decompositions) in &self.chem.deriv.decompositions {
-                            let compound = &self.chem.laws.compounds[*compound_id];
-                            let header = format!("{} [{} kJ/mol]", compound.name, compound.std_free_energy);
-                            ui.collapsing(header, |ui| {
-                                egui::Grid::new("decomp").striped(true).show(ui, |ui| {
-                                    ui.strong("Free energy");
-                                    ui.strong("Products");
-                                    ui.end_row();
+fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
+    let margin = cfg.particle_radius;
+    let spacing = margin * 2.0;
+    let total_width = cfg.particle_radius + spacing;
+    let nx = (cfg.dimensions.x / total_width) as i32;
+    let ny = (cfg.dimensions.y / total_width) as i32;
 
-                                    for products in decompositions.0.iter() {
-                                        ui.label(format!("{}", products.total_std_free_energy));
-                                        ui.horizontal(|ui| {
-                                            ui.label("->");
-                                            for (i, (other_id, n)) in
-                                                products.compounds.iter().enumerate().rev()
-                                                {
-                                                    let other_compound =
-                                                        &self.chem.laws.compounds[*other_id];
-                                                    ui.label(n.to_string());
-                                                    ui.label(&other_compound.name);
-                                                    if i != 0 {
-                                                        ui.label(" + ");
-                                                    }
-                                                }
-                                        });
-                                        ui.end_row();
-                                    }
-                                });
-                            });
-                        }
-                    });
+    let rand_range = cfg.particle_radius * 1e-2;
+    let unif = rand::distributions::Uniform::new(-rand_range, rand_range);
+
+    let mut rng = rand::thread_rng();
+    for x in 0..nx {
+        for y in 0..ny {
+            let mut pos = Pos2::new(
+                x as f32 * total_width + margin + cfg.particle_radius,
+                y as f32 * total_width + margin + cfg.particle_radius,
+            );
+
+            pos.x += unif.sample(&mut rng);
+            pos.y += unif.sample(&mut rng);
+
+            sim.particles.push(Particle {
+                compound,
+                pos,
+                vel: Vec2::ZERO,
             });
         }
     }
-
-    fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
-        let margin = cfg.particle_radius;
-        let spacing = margin * 2.0;
-        let total_width = cfg.particle_radius + spacing;
-        let nx = (cfg.dimensions.x / total_width) as i32;
-        let ny = (cfg.dimensions.y / total_width) as i32;
-
-        let rand_range = cfg.particle_radius * 1e-2;
-        let unif = rand::distributions::Uniform::new(-rand_range, rand_range);
-
-        let mut rng = rand::thread_rng();
-        for x in 0..nx {
-            for y in 0..ny {
-                let mut pos = Pos2::new(
-                    x as f32 * total_width + margin + cfg.particle_radius,
-                    y as f32 * total_width + margin + cfg.particle_radius,
-                );
-
-                pos.x += unif.sample(&mut rng);
-                pos.y += unif.sample(&mut rng);
-
-                sim.particles.push(Particle {
-                    compound,
-                    pos,
-                    vel: Vec2::ZERO,
-                });
-            }
-        }
-    }
+}

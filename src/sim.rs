@@ -102,10 +102,8 @@ impl Sim {
 
                 if let Some((i, neighbor)) = min_particle_indices {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-                    let m1 = 1.0;
-                    let m2 = 1.0;
-                    //let m1 = chem.laws.compounds[p1.compound].mass;
-                    //let m2 = chem.laws.compounds[p2.compound].mass;
+                    let m1 = chem.laws.compounds[p1.compound].mass;
+                    let m2 = chem.laws.compounds[p2.compound].mass;
 
                     let rel_pos = p2.pos - p1.pos;
                     let rel_dir = rel_pos.normalized();
@@ -113,8 +111,8 @@ impl Sim {
 
                     let vel_component = rel_vel.dot(rel_dir).abs();
                     //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
-                    p2.vel += rel_dir * vel_component;
-                    p1.vel += -rel_dir * vel_component;
+                    p2.vel += rel_dir * (vel_component * 2.0 * m1 / (m2 + m1));
+                    p1.vel += -rel_dir * (vel_component * 2.0 * m2 / (m2 + m1));
                 }
             } else {
                 // Cowardly move halfway to the goal
