@@ -158,7 +158,7 @@ impl Default for SimConfig {
         Self {
             dimensions: Vec2::new(100., 100.),
             dt: 1. / 60.,
-            particle_radius: 10.0,
+            particle_radius: 20.0,
             max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,

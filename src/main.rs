@@ -280,10 +280,14 @@ impl ChemToyApp {
             */
         ]);
 
-        let chem = ChemicalWorld::from_laws(Laws {
+        let mut chem = ChemicalWorld::from_laws(Laws {
             elements,
             compounds,
         });
+
+        for comp in &mut chem.laws.compounds.0 {
+            comp.name = comp.display(&chem.laws.elements);
+        }
 
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
 
@@ -415,14 +419,15 @@ impl ChemToyApp {
                         .particles
                         .iter()
                         .map(|particle| {
-                            (self.sim_cfg.dimensions.y - particle.pos.y) * self.sim_cfg.gravity
+                            let h = self.sim_cfg.dimensions.y - particle.pos.y;
+                            self.chem.laws.compounds[particle.compound].mass * h * self.sim_cfg.gravity
                         })
                         .sum::<f32>();
                     let kinetic_energy = self
                         .sim
                         .particles
                         .iter()
-                        .map(|particle| particle.vel.length_sq() / 2.0)
+                        .map(|particle| self.chem.laws.compounds[particle.compound].mass * particle.vel.length_sq() / 2.0)
                         .sum::<f32>();
                     let total_energy = potential_energy + kinetic_energy;
                     ui.label(format!("Potential energy: {potential_energy:.02}"));
