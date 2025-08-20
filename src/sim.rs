@@ -12,6 +12,8 @@ pub struct Particle {
     pub compound: CompoundId,
     pub pos: Pos2,
     pub vel: Vec2,
+    /// Should this particle decompose ASAP, and with how much energy?
+    pub to_decompose: Option<f32>,
 }
 
 pub struct SimConfig {

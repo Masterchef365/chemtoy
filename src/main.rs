@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use egui::{Color32, DragValue, Pos2, Rect, Stroke, Vec2};
+use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use query_accel::QueryAccelerator;
 use rand::prelude::Distribution;
@@ -29,7 +29,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Ok(Box::new(TemplateApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(ChemToyApp::new(cc)))),
     )
 }
 
@@ -59,7 +59,7 @@ fn main() {
             .start(
                 canvas,
                 web_options,
-                Box::new(|cc| Ok(Box::new(TemplateApp::new(cc)))),
+                Box::new(|cc| Ok(Box::new(ChemToyApp::new(cc)))),
             )
             .await;
 
@@ -80,10 +80,10 @@ fn main() {
     });
 }
 
-pub struct TemplateApp {
+pub struct ChemToyApp {
     chem: ChemicalWorld,
     sim: Sim,
-    cfg: SimConfig,
+    sim_cfg: SimConfig,
     scene_rect: Rect,
     draw_compound: CompoundId,
     paused: bool,
@@ -92,6 +92,7 @@ pub struct TemplateApp {
     with_jittered_grid: bool,
 
     screen: Screen,
+    vis_cfg: VisualizationConfig,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -115,7 +116,7 @@ impl Default for SaveData {
     }
 }
 
-impl TemplateApp {
+impl ChemToyApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         /*
         let save_data = cc
@@ -295,16 +296,17 @@ impl TemplateApp {
             draw_compound,
             chem,
             sim,
-            cfg,
+            sim_cfg: cfg,
             scene_rect: Rect::ZERO,
             paused: false,
             with_jittered_grid: false,
             screen: Screen::ChemBook,
+            vis_cfg: Default::default(),
         }
     }
 }
 
-impl eframe::App for TemplateApp {
+impl eframe::App for ChemToyApp {
     /*
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
@@ -328,101 +330,113 @@ impl eframe::App for TemplateApp {
     }
 }
 
-impl TemplateApp {
+impl ChemToyApp {
     fn update_simulation(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut single_step = false;
 
         egui::SidePanel::left("cfg").show(ctx, |ui| {
-            ui.group(|ui| {
-                ui.strong("Time");
-                let text = if self.paused { "Paused" } else { "Running" };
-                ui.horizontal(|ui| {
-                    ui.label("Slowdown: ");
-                    ui.add(DragValue::new(&mut self.slowdown).range(1..=usize::MAX));
+            egui::ScrollArea::both().show(ui, |ui| {
+                ui.group(|ui| {
+                    ui.strong("Time");
+                    let text = if self.paused { "Paused" } else { "Running" };
+                    ui.horizontal(|ui| {
+                        ui.label("Slowdown: ");
+                        ui.add(DragValue::new(&mut self.slowdown).range(1..=usize::MAX));
+                    });
+                    self.paused ^= ui.button(text).clicked();
+                    single_step |= ui.button("Single step").clicked();
+                    ui.checkbox(&mut self.sim_cfg.fill_timestep, "Fill timestep");
                 });
-                self.paused ^= ui.button(text).clicked();
-                single_step |= ui.button("Single step").clicked();
-                ui.checkbox(&mut self.cfg.fill_timestep, "Fill timestep");
-            });
 
-            ui.group(|ui| {
-                ui.strong("Drawing");
-                ui.horizontal(|ui| {
-                    ui.label("Compound: ");
-                    egui::ComboBox::new(
-                        "compound",
-                        &self.chem.laws.compounds[self.draw_compound].name,
-                    )
-                    .show_index(
-                        ui,
-                        &mut self.draw_compound.0,
-                        self.chem.laws.compounds.0.len(),
-                        |i| self.chem.laws.compounds.0[i].name.clone(),
-                    )
+                ui.group(|ui| {
+                    ui.strong("Drawing");
+                    ui.horizontal(|ui| {
+                        ui.label("Compound: ");
+                        egui::ComboBox::new(
+                            "compound",
+                            &self.chem.laws.compounds[self.draw_compound].name,
+                        )
+                        .show_index(
+                            ui,
+                            &mut self.draw_compound.0,
+                            self.chem.laws.compounds.0.len(),
+                            |i| self.chem.laws.compounds.0[i].name.clone(),
+                        )
+                    });
                 });
-            });
 
-            ui.group(|ui| {
-                ui.strong("Simulation");
-                ui.horizontal(|ui| {
-                    if ui.button("Reset").clicked() {
-                        self.sim = Sim::new();
-                        if self.with_jittered_grid {
-                            jittered_grid(&mut self.sim, &self.cfg, self.draw_compound);
+                ui.group(|ui| {
+                    ui.strong("Simulation");
+                    ui.horizontal(|ui| {
+                        if ui.button("Reset").clicked() {
+                            self.sim = Sim::new();
+                            if self.with_jittered_grid {
+                                jittered_grid(&mut self.sim, &self.sim_cfg, self.draw_compound);
+                            }
                         }
-                    }
-                    ui.checkbox(&mut self.with_jittered_grid, "with particles");
+                        ui.checkbox(&mut self.with_jittered_grid, "with particles");
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Δt: ");
+                        ui.add(
+                            DragValue::new(&mut self.sim_cfg.dt)
+                                .speed(1e-3)
+                                .range(0.0..=f32::MAX)
+                                .suffix(" units/step"),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Dimensions: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.dimensions.x));
+                        ui.label("x");
+                        ui.add(DragValue::new(&mut self.sim_cfg.dimensions.y));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Particle radius: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.particle_radius).speed(1e-2));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Max collision time: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.max_collision_time).speed(1e-2));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Gravity: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.gravity).speed(1e-2));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Speed limit: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
+                    });
+
+                    // TODO: Neglects mass...
+                    let potential_energy = self
+                        .sim
+                        .particles
+                        .iter()
+                        .map(|particle| {
+                            (self.sim_cfg.dimensions.y - particle.pos.y) * self.sim_cfg.gravity
+                        })
+                        .sum::<f32>();
+                    let kinetic_energy = self
+                        .sim
+                        .particles
+                        .iter()
+                        .map(|particle| particle.vel.length_sq() / 2.0)
+                        .sum::<f32>();
+                    let total_energy = potential_energy + kinetic_energy;
+                    ui.label(format!("Potential energy: {potential_energy:.02}"));
+                    ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
+                    ui.label(format!("Total energy: {total_energy}"));
                 });
 
-                ui.horizontal(|ui| {
-                    ui.label("Δt: ");
-                    ui.add(
-                        DragValue::new(&mut self.cfg.dt)
-                            .speed(1e-3)
-                            .range(0.0..=f32::MAX)
-                            .suffix(" units/step"),
+                ui.group(|ui| {
+                    ui.strong("Visualization");
+                    ui.checkbox(
+                        &mut self.vis_cfg.show_velocity_vector,
+                        "Show Velocity Vector",
                     );
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Dimensions: ");
-                    ui.add(DragValue::new(&mut self.cfg.dimensions.x));
-                    ui.label("x");
-                    ui.add(DragValue::new(&mut self.cfg.dimensions.y));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Particle radius: ");
-                    ui.add(DragValue::new(&mut self.cfg.particle_radius).speed(1e-2));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Max collision time: ");
-                    ui.add(DragValue::new(&mut self.cfg.max_collision_time).speed(1e-2));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Gravity: ");
-                    ui.add(DragValue::new(&mut self.cfg.gravity).speed(1e-2));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Speed limit: ");
-                    ui.add(DragValue::new(&mut self.cfg.speed_limit).speed(1e-2));
-                });
-
-                // TODO: Neglects mass...
-                let potential_energy = self
-                    .sim
-                    .particles
-                    .iter()
-                    .map(|particle| (self.cfg.dimensions.y - particle.pos.y) * self.cfg.gravity)
-                    .sum::<f32>();
-                let kinetic_energy = self
-                    .sim
-                    .particles
-                    .iter()
-                    .map(|particle| particle.vel.length_sq() / 2.0)
-                    .sum::<f32>();
-                let total_energy = potential_energy + kinetic_energy;
-                ui.label(format!("Potential energy: {potential_energy:.02}"));
-                ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
-                ui.label(format!("Total energy: {total_energy}"));
             });
         });
 
@@ -430,8 +444,10 @@ impl TemplateApp {
             egui::Scene::new()
                 .zoom_range(0.0..=100.0)
                 .show(ui, &mut self.scene_rect, |ui| {
-                    let (rect, resp) =
-                        ui.allocate_exact_size(self.cfg.dimensions, egui::Sense::click_and_drag());
+                    let (rect, resp) = ui.allocate_exact_size(
+                        self.sim_cfg.dimensions,
+                        egui::Sense::click_and_drag(),
+                    );
                     // Background rect
                     ui.painter().rect_filled(rect, 0.0, Color32::DARK_GRAY);
 
@@ -444,37 +460,25 @@ impl TemplateApp {
                         egui::StrokeKind::Outside,
                     );
 
-                    for particle in &self.sim.particles {
-                        ui.painter().circle_filled(
-                            particle.pos + rect.min.to_vec2(),
-                            self.cfg.particle_radius,
-                            Color32::GRAY,
-                        );
-                        let compound = &self.chem.laws.compounds[particle.compound];
-                        ui.painter().text(
-                            particle.pos,
-                            egui::Align2([egui::Align::Center; 2]),
-                            &compound.name,
-                            Default::default(),
-                            Color32::WHITE,
-                        );
-
-                        ui.painter().arrow(
-                            particle.pos + rect.min.to_vec2(),
-                            particle.vel,
-                            Stroke::new(1.0, Color32::RED),
-                        );
-                    }
+                    draw_particles(
+                        ui,
+                        rect,
+                        &self.sim.particles,
+                        &self.sim_cfg,
+                        &self.chem.laws,
+                        &self.vis_cfg,
+                    );
 
                     //if let Some(drag_pos) = resp.interact_pointer_pos() {
                     if let Some(interact_pos) = resp.interact_pointer_pos() {
                         if resp.clicked() || resp.dragged() {
                             let pos = interact_pos - rect.min.to_vec2();
-                            if self.sim.area_is_clear(&self.cfg, pos) {
+                            if self.sim.area_is_clear(&self.sim_cfg, pos) {
                                 self.sim.particles.push(Particle {
                                     compound: self.draw_compound,
                                     pos,
                                     vel: resp.drag_delta(),
+                                    to_decompose: None,
                                 });
                             }
                         }
@@ -484,7 +488,7 @@ impl TemplateApp {
 
         if !self.paused || single_step {
             if self.frame_count % self.slowdown.max(1) == 0 {
-                self.sim.step(&self.cfg, &self.chem);
+                self.sim.step(&self.sim_cfg, &self.chem);
             }
             ctx.request_repaint();
             self.frame_count += 1;
@@ -588,7 +592,53 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
                 compound,
                 pos,
                 vel: Vec2::ZERO,
+                to_decompose: None,
             });
+        }
+    }
+}
+
+struct VisualizationConfig {
+    show_velocity_vector: bool,
+}
+
+fn draw_particles(
+    ui: &mut Ui,
+    rect: Rect,
+    particles: &[Particle],
+    cfg: &SimConfig,
+    laws: &Laws,
+    vis_cfg: &VisualizationConfig,
+) {
+    for particle in particles {
+        ui.painter().circle_filled(
+            particle.pos + rect.min.to_vec2(),
+            cfg.particle_radius,
+            Color32::GRAY,
+        );
+        let compound = &laws.compounds[particle.compound];
+        ui.painter().text(
+            particle.pos,
+            egui::Align2([egui::Align::Center; 2]),
+            &compound.name,
+            Default::default(),
+            Color32::WHITE,
+        );
+
+        if vis_cfg.show_velocity_vector {
+            ui.painter().arrow(
+                particle.pos + rect.min.to_vec2(),
+                particle.vel,
+                Stroke::new(1.0, Color32::RED),
+            );
+        }
+    }
+}
+
+impl Default for VisualizationConfig {
+    fn default() -> Self {
+        Self {
+            show_velocity_vector: false,
         }
     }
 }
