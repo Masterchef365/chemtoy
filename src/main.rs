@@ -1,8 +1,7 @@
-use std::{collections::HashMap, hash::Hasher};
+use std::hash::Hasher;
 
 use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
-use query_accel::QueryAccelerator;
 use rand::prelude::Distribution;
 use sim::*;
 
@@ -420,14 +419,20 @@ impl ChemToyApp {
                         .iter()
                         .map(|particle| {
                             let h = self.sim_cfg.dimensions.y - particle.pos.y;
-                            self.chem.laws.compounds[particle.compound].mass * h * self.sim_cfg.gravity
+                            self.chem.laws.compounds[particle.compound].mass
+                                * h
+                                * self.sim_cfg.gravity
                         })
                         .sum::<f32>();
                     let kinetic_energy = self
                         .sim
                         .particles
                         .iter()
-                        .map(|particle| self.chem.laws.compounds[particle.compound].mass * particle.vel.length_sq() / 2.0)
+                        .map(|particle| {
+                            self.chem.laws.compounds[particle.compound].mass
+                                * particle.vel.length_sq()
+                                / 2.0
+                        })
                         .sum::<f32>();
                     let total_energy = potential_energy + kinetic_energy;
                     ui.label(format!("Potential energy: {potential_energy:.02}"));

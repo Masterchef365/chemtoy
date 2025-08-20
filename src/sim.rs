@@ -1,8 +1,7 @@
-use egui::{Color32, DragValue, Pos2, Rect, Stroke, Vec2};
-use crate::laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
+use crate::laws::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
+use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
-
 
 pub struct Sim {
     pub particles: Vec<Particle>,
@@ -62,7 +61,7 @@ impl Sim {
             for i in 0..self.particles.len() {
                 // Check time of intersection with neighbors
                 for neighbor in accel.query_neighbors_fast(i, points[i]) {
-                //for neighbor in i + 1..self.particles.len() {
+                    //for neighbor in i + 1..self.particles.len() {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
 
                     // TODO: Cache these intersections AND evict the cache ...
@@ -149,7 +148,9 @@ impl Sim {
     /// TODO: slow!
     pub fn area_is_clear(&mut self, cfg: &SimConfig, pos: Pos2) -> bool {
         let thresh_sq = (cfg.particle_radius * 2.0).powi(2);
-        self.particles.iter().all(|p| p.pos.distance_sq(pos) > thresh_sq)
+        self.particles
+            .iter()
+            .all(|p| p.pos.distance_sq(pos) > thresh_sq)
     }
 }
 
@@ -298,5 +299,3 @@ fn time_of_intersection_boundary(
         (None, None) => None,
     }
 }
-
-

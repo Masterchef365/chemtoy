@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Formula(pub BTreeMap<ElementId, usize>);
@@ -254,9 +254,18 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
 
     let mut output = ProductSet::default();
     let start = std::time::Instant::now();
-    find_decompositions_rec(laws, compound, &relevant_compounds, &mut output, &mut vec![]);
-    
-    dbg!(laws.compounds[compound_id].display(&laws.elements), start.elapsed().as_secs_f32());
+    find_decompositions_rec(
+        laws,
+        compound,
+        &relevant_compounds,
+        &mut output,
+        &mut vec![],
+    );
+
+    dbg!(
+        laws.compounds[compound_id].display(&laws.elements),
+        start.elapsed().as_secs_f32()
+    );
     output
 }
 
@@ -323,7 +332,13 @@ fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId])
 
     // TODO: These are slow! Precompute...
     let max_n: usize = formula.0.values().sum();
-    let max_charge_mag = laws.compounds.0.iter().map(|c| c.charge.abs()).max().unwrap_or(0);
+    let max_charge_mag = laws
+        .compounds
+        .0
+        .iter()
+        .map(|c| c.charge.abs())
+        .max()
+        .unwrap_or(0);
     let has_reasonable_charge = charge.abs() <= max_n as i32 * max_charge_mag;
 
     formula.0.values().any(|n| *n > 0) && has_reasonable_charge
@@ -351,7 +366,8 @@ impl Eq for Products {}
 
 impl PartialOrd for Products {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.total_std_free_energy.partial_cmp(&other.total_std_free_energy)
+        self.total_std_free_energy
+            .partial_cmp(&other.total_std_free_energy)
     }
 }
 

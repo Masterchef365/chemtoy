@@ -151,4 +151,3 @@ fn combos<const N: usize>(min: i32, max: i32, step: i32) -> Vec<[i32; N]> {
         }
     }
 }
-
