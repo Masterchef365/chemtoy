@@ -23,6 +23,7 @@ pub struct SimConfig {
     pub fill_timestep: bool,
     pub gravity: f32,
     pub speed_limit: f32,
+    pub ke_scale_factor: f32,
 }
 
 impl Sim {
@@ -110,10 +111,18 @@ impl Sim {
                     let rel_dir = rel_pos.normalized();
                     let rel_vel = p2.vel - p1.vel;
 
+                    // Velocity at point of contact
                     let vel_component = rel_vel.dot(rel_dir).abs();
+
+                    let total_mass = m1 + m2;
+                    //const KG_PER_DALTON: f32 = 1.6605390e-27; 
+
+                    let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
+
+
                     //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
-                    p2.vel += rel_dir * (vel_component * 2.0 * m1 / (m2 + m1));
-                    p1.vel += -rel_dir * (vel_component * 2.0 * m2 / (m2 + m1));
+                    p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
+                    p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
                 }
             } else {
                 // Cowardly move halfway to the goal
@@ -164,6 +173,7 @@ impl Default for SimConfig {
             fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
+            ke_scale_factor: 1.2432348, // Arbitrary
         }
     }
 }

@@ -140,7 +140,7 @@ impl ChemToyApp {
         });
 
         let compounds = Compounds::new(vec![
-            //Compound::new("e-", -1, 0.0, &[], &elements),
+            Compound::new("e-", -1, 0.0, &[], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H+", 1, 1516.99, &[(hydrogen, 1)], &elements),
@@ -285,7 +285,9 @@ impl ChemToyApp {
         });
 
         for comp in &mut chem.laws.compounds.0 {
-            comp.name = comp.display(&chem.laws.elements);
+            if comp.name != "e-" {
+                comp.name = comp.display(&chem.laws.elements);
+            }
         }
 
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
@@ -411,6 +413,11 @@ impl ChemToyApp {
                         ui.label("Speed limit: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
                     });
+                    ui.horizontal(|ui| {
+                        ui.label("Kinetic energy scale factor: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.ke_scale_factor).speed(1e-2));
+                    });
+
 
                     // TODO: Neglects mass...
                     let potential_energy = self
@@ -527,7 +534,7 @@ impl ChemToyApp {
                                 ui.label(format!("{idx}"));
                                 ui.label(&compound.name);
                                 ui.label(compound.display(&self.chem.laws.elements));
-                                ui.label(format!("{} Au", &compound.mass));
+                                ui.label(format!("{} u", &compound.mass));
                                 ui.label(format!("{}", &compound.charge));
                                 ui.label(format!("{} kJ/mol", &compound.std_free_energy));
                                 ui.end_row();

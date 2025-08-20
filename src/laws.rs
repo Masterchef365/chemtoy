@@ -42,7 +42,7 @@ pub struct Derivations {
 
 /// Product set. Sorted by total_std_free_energy.
 #[derive(Default, Clone, Debug)]
-pub struct ProductSet(pub BTreeSet<Products>);
+pub struct ProductSet(pub Vec<Products>);
 
 #[derive(Default, Clone, Debug)]
 pub struct Products {
@@ -262,6 +262,8 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
         &mut vec![],
     );
 
+    output.0.sort_by(|a, b| a.total_std_free_energy.partial_cmp(&b.total_std_free_energy).unwrap());
+
     dbg!(
         laws.compounds[compound_id].display(&laws.elements),
         start.elapsed().as_secs_f32()
@@ -279,7 +281,7 @@ fn find_decompositions_rec(
 ) {
     if !check_stack_continue(laws, compound.formula.clone(), stack) {
         if check_stack(laws, compound.formula.clone(), compound.charge, stack) {
-            output.0.insert(Products::from_compound_ids(&stack, laws));
+            output.0.push(Products::from_compound_ids(&stack, laws));
         }
         return;
     }
