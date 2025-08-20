@@ -252,7 +252,10 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
         .collect();
 
     let mut output = ProductSet::default();
+    let start = std::time::Instant::now();
     find_decompositions_rec(laws, compound, &relevant_compounds, &mut output, &mut vec![]);
+    
+    dbg!(laws.compounds[compound_id].display(&laws.elements), start.elapsed().as_secs_f32());
     output
 }
 
@@ -272,9 +275,12 @@ fn find_decompositions_rec(
     }
 
     for (relevant_compound_id, _) in relevant_compounds {
-        stack.push(*relevant_compound_id);
-        find_decompositions_rec(laws, compound, relevant_compounds, output, stack);
-        stack.pop();
+        // We only want to visit each possible number of each compounds once
+        if Some(relevant_compound_id) > stack.last() {
+            stack.push(*relevant_compound_id);
+            find_decompositions_rec(laws, compound, relevant_compounds, output, stack);
+            stack.pop();
+        }
     }
 }
 
