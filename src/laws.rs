@@ -32,7 +32,7 @@ pub struct Compound {
 #[derive(Clone, Debug)]
 pub struct Derivations {
     /// For each compound, which other sets of compounds could be formed?
-    pub decompositions: HashMap<CompoundId, ProductSet>,
+    pub decompositions: Vec<(CompoundId, ProductSet)>,
     /// Reverse of decompositions, but for combinations of only two compounds.
     /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
     /// so that there are no redundant indices.
@@ -220,7 +220,7 @@ fn print_subscript_number(s: &mut String, mut number: i32) {
     }
 }
 
-fn compute_decompositions(laws: &Laws) -> HashMap<CompoundId, ProductSet> {
+fn compute_decompositions(laws: &Laws) -> Vec<(CompoundId, ProductSet)> {
     laws.compounds
         .enumerate()
         .map(|(compound_id, _)| {
@@ -276,7 +276,7 @@ fn find_decompositions_rec(
 
     for (relevant_compound_id, _) in relevant_compounds {
         // We only want to visit each possible number of each compounds once
-        if Some(relevant_compound_id) > stack.last() {
+        if Some(relevant_compound_id) >= stack.last() {
             stack.push(*relevant_compound_id);
             find_decompositions_rec(laws, compound, relevant_compounds, output, stack);
             stack.pop();
