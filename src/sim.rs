@@ -7,6 +7,7 @@ pub struct Sim {
     pub particles: Vec<Particle>,
 }
 
+#[derive(Clone)]
 pub struct Particle {
     pub compound: CompoundId,
     pub pos: Pos2,
@@ -32,8 +33,6 @@ impl Sim {
     }
 
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
-        // Build a map for the collisions
-        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
 
@@ -45,7 +44,7 @@ impl Sim {
             }
         }
 
-        let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
+        // Build a map for the collisions
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
@@ -54,6 +53,9 @@ impl Sim {
                 break;
             }
             remaining_loops -= 1;
+
+            let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
+            let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
 
             let mut min_dt = cfg.dt;
 
@@ -104,8 +106,11 @@ impl Sim {
 
                 if let Some((i, neighbor)) = min_particle_indices {
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-                    let m1 = chem.laws.compounds[p1.compound].mass;
-                    let m2 = chem.laws.compounds[p2.compound].mass;
+                    let c1 = &chem.laws.compounds[p1.compound];
+                    let c2 = &chem.laws.compounds[p2.compound];
+
+                    let m1 = c1.mass;
+                    let m2 = c2.mass;
 
                     let rel_pos = p2.pos - p1.pos;
                     let rel_dir = rel_pos.normalized();
@@ -118,7 +123,11 @@ impl Sim {
                     //const KG_PER_DALTON: f32 = 1.6605390e-27; 
 
                     let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
-
+                    
+                    if kinetic_energy * cfg.ke_scale_factor > 500.0 {
+                        p1.to_decompose = Some(kinetic_energy);
+                        p2.to_decompose = Some(kinetic_energy);
+                    }
 
                     //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
                     p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
@@ -135,6 +144,39 @@ impl Sim {
                     dbg!(elapsed, dt);
                 }
                 elapsed += dt;
+            }
+
+            // Decompose one particle if possible
+            let margin = 1e-2;
+
+            'particles: for i in 0..self.particles.len() {
+                if let Some(energy) = self.particles[i].to_decompose {
+                    for neighbor in accel.query_neighbors_fast(i, points[i]) {
+                        if neighbor == i {
+                            continue;
+                        }
+
+                        if self.particles[neighbor].pos.distance(self.particles[i].pos) < (cfg.particle_radius + margin) * 4.0 {
+                            continue 'particles;
+                        }
+                    }
+
+                    let mut direction = self.particles[i].vel;
+                    if direction.length_sq() == 0.0 {
+                        direction = Vec2::Y;
+                    } else {
+                        direction = direction.normalized();
+                    }
+                    let direction = direction.rot90();
+
+                    self.particles[i].to_decompose = None;
+
+                    let mut newpart = self.particles[i].clone();
+                    self.particles[i].pos += direction * (cfg.particle_radius + margin);
+                    newpart.pos -= direction * (cfg.particle_radius + margin);
+
+                    self.particles.push(newpart);
+                }
             }
 
             if !cfg.fill_timestep {

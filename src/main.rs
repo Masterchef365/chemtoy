@@ -140,7 +140,7 @@ impl ChemToyApp {
         });
 
         let compounds = Compounds::new(vec![
-            Compound::new("e-", -1, 0.0, &[], &elements),
+            //Compound::new("e-", -1, 0.0, &[], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H+", 1, 1516.99, &[(hydrogen, 1)], &elements),
