@@ -1,4 +1,4 @@
-use crate::laws::{ChemicalWorld, CompoundId};
+use crate::laws::{ChemicalWorld, CompoundId, Laws};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
@@ -36,6 +36,7 @@ impl Sim {
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
 
+        /*
         let speed_limit_sq = cfg.speed_limit.powi(2);
         for particle in &mut self.particles {
             if particle.vel.length_sq() > speed_limit_sq {
@@ -43,12 +44,13 @@ impl Sim {
                 particle.vel = particle.vel.normalized() * cfg.speed_limit;
             }
         }
+        */
 
         // Build a map for the collisions
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
-        while elapsed < cfg.dt {
+        'timeloop: while elapsed < cfg.dt {
             if remaining_loops == 0 {
                 break;
             }
@@ -150,17 +152,33 @@ impl Sim {
             let margin = 1e-2;
 
             'particles: for i in 0..self.particles.len() {
-                if let Some(energy) = self.particles[i].to_decompose {
+                if let Some(kinetic_energy) = self.particles[i].to_decompose {
+                    let compound_id = self.particles[i].compound;
+                    let compound = &chem.laws.compounds[compound_id];
+
+                    let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
+                    let Some(product_idx) = all_products.nearest_energy(kinetic_energy) else {
+                        self.particles[i].to_decompose = None;
+                        continue 'particles;
+                    };
+                    let products = &all_products.0[product_idx];
+                    //products.compounds
+                    //products.total_std_free_energy
+
                     for neighbor in accel.query_neighbors_fast(i, points[i]) {
                         if neighbor == i {
                             continue;
                         }
 
-                        if self.particles[neighbor].pos.distance(self.particles[i].pos) < (cfg.particle_radius + margin) * 4.0 {
+                        // Is anything nearby? Then we can't split.
+                        let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
+                        //let distance_thresh =  
+                        if distance < (cfg.particle_radius + margin) * 4.0 {
                             continue 'particles;
                         }
                     }
 
+                    // Determine where to put the new particles
                     let mut direction = self.particles[i].vel;
                     if direction.length_sq() == 0.0 {
                         direction = Vec2::Y;
@@ -176,6 +194,8 @@ impl Sim {
                     newpart.pos -= direction * (cfg.particle_radius + margin);
 
                     self.particles.push(newpart);
+
+                    continue 'timeloop;
                 }
             }
 
