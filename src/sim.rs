@@ -50,8 +50,8 @@ impl Sim {
             let speed_limit_sq = cfg.speed_limit.powi(2);
             for particle in &mut self.particles {
                 if particle.vel.length_sq() > speed_limit_sq {
-                    //eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
-                    particle.vel = particle.vel.normalized() * cfg.speed_limit;
+                    eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
+                    particle.vel = particle.vel.normalized() * cfg.speed_limit * 0.9;
                 }
             }
 
@@ -106,6 +106,14 @@ impl Sim {
                 }
 
                 if let Some((i, neighbor)) = min_particle_indices {
+                    // TODO: Make the sorted keys a type...
+                    let mut keys = [
+                        self.particles[i].compound,
+                        self.particles[neighbor].compound,
+                    ];
+                    keys.sort_by_key(|CompoundId(i)| *i);
+                    let [a, b] = keys;
+
                     let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
                     let c1 = &chem.laws.compounds[p1.compound];
                     let c2 = &chem.laws.compounds[p2.compound];
@@ -133,6 +141,12 @@ impl Sim {
                     //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
                     p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
                     p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
+
+                    if let Some(product_id) = chem.deriv.synthesis.get(&(a, b)) {
+                        self.particles[i].compound = *product_id;
+                        self.particles.remove(neighbor);
+                        continue 'timeloop;
+                    }
                 }
             } else {
                 // Cowardly move halfway to the goal
@@ -158,7 +172,8 @@ impl Sim {
                     let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
 
                     let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
-                    let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
+                    let Some(last_product_idx) = all_products.nearest_energy(threshold_energy)
+                    else {
                         continue 'particles;
                     };
 
@@ -186,7 +201,14 @@ impl Sim {
                         }
 
                         let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
-                        if distance < (cfg.particle_radius + margin) * 2.0 * (children.len() as f32) {
+                        let safe_distance =
+                            (cfg.particle_radius + margin) * 2.0 * (children.len() as f32);
+                        if distance < safe_distance
+                            || particle.pos.x < safe_distance
+                            || cfg.dimensions.x - particle.pos.x < safe_distance
+                            || particle.pos.y < safe_distance
+                            || cfg.dimensions.y - particle.pos.y < safe_distance
+                        {
                             continue 'particles;
                         }
                     }

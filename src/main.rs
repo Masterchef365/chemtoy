@@ -585,7 +585,7 @@ impl ChemToyApp {
 }
 
 fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
-    let margin = cfg.particle_radius;
+    let margin = cfg.particle_radius * 8.0;
     let spacing = margin * 2.0;
     let total_width = cfg.particle_radius + spacing;
     let nx = (cfg.dimensions.x / total_width) as i32;

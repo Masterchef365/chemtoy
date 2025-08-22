@@ -37,7 +37,7 @@ pub struct Derivations {
     /// Reverse of decompositions, but for combinations of only two compounds.
     /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
     /// so that there are no redundant indices.
-    pub reactions: HashMap<(CompoundId, CompoundId), ProductSet>,
+    pub synthesis: HashMap<(CompoundId, CompoundId), CompoundId>,
 }
 
 /// Product set. Sorted by total_std_free_energy.
@@ -109,11 +109,11 @@ impl ChemicalWorld {
 
 impl Derivations {
     pub fn from_laws(laws: &Laws) -> Self {
+        let decompositions = compute_decompositions(laws);
+        let synthesis = compute_synthesis(&decompositions);
         Self {
-            //reactions: todo!(),
-            //decompositions: todo!(),
-            reactions: HashMap::new(),
-            decompositions: compute_decompositions(laws),
+            decompositions,
+            synthesis,
         }
     }
 }
@@ -261,7 +261,7 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
         &mut vec![],
     );
 
-    output.0.sort_by(|a, b| a.total_std_free_energy.partial_cmp(&b.total_std_free_energy).unwrap());
+    output.sort();
 
     output
 }
@@ -351,6 +351,10 @@ impl Products {
         }
         inst
     }
+
+    pub fn count(&self) -> usize {
+        self.compounds.iter().map(|(_, n)| *n).sum()
+    }
 }
 
 impl PartialEq for Products {
@@ -385,5 +389,40 @@ impl ProductSet {
         }
         output
     }
+
+    pub fn sort(&mut self) {
+        self.0.sort_by(|a, b| {
+            a.total_std_free_energy
+                .partial_cmp(&b.total_std_free_energy)
+                .unwrap()
+        });
+    }
 }
 
+fn compute_synthesis(
+    decompositions: &HashMap<CompoundId, ProductSet>,
+) -> HashMap<(CompoundId, CompoundId), CompoundId> {
+    let mut output: HashMap<(CompoundId, CompoundId), CompoundId> = HashMap::new();
+    for (product_id, reactions) in decompositions {
+        for reaction in &reactions.0 {
+            if reaction.count() != 2 {
+                continue;
+            }
+
+            let mut keys = [CompoundId(0); 2];
+            let mut i = 0;
+            for (compound_id, n) in reaction.compounds.iter() {
+                for _ in 0..*n {
+                    keys[i] = *compound_id;
+                    i += 1;
+                }
+            }
+            keys.sort_by_key(|CompoundId(i)| *i);
+
+            let [a, b] = keys;
+            output.insert((a, b), *product_id);
+        }
+    }
+
+    output
+}
