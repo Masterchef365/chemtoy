@@ -379,48 +379,16 @@ impl Ord for Products {
     }
 }
 
-
-use std::cmp::Ordering;
-
 impl ProductSet {
     pub fn nearest_energy(&self, energy: f32) -> Option<usize> {
-        // WARNING: chatgpt
-        if self.0.is_empty() {
-            return None;
-        }
-
-        match self.0.binary_search_by(|p| {
-            p.total_std_free_energy
-                .partial_cmp(&energy)
-                .unwrap_or(Ordering::Equal) // handles NaN gracefully
-        }) {
-            Ok(idx) => Some(idx), // exact match
-            Err(idx) => {
-                if idx == 0 {
-                    Some(0) // energy is below all elements
-                } else if idx >= self.0.len() {
-                    Some(self.0.len() - 1) // energy is above all elements
-                } else {
-                    // Between idx-1 and idx -> choose closer
-                    let prev = &self.0[idx - 1].total_std_free_energy;
-                    let next = &self.0[idx].total_std_free_energy;
-
-                    if (energy - prev).abs() <= (next - energy).abs() {
-                        Some(idx - 1)
-                    } else {
-                        Some(idx)
-                    }
-                }
+        let mut output = None;
+        // TODO: Binary search (maybe not even worth it?)
+        for (idx, set) in self.0.iter().enumerate() {
+            if energy > set.total_std_free_energy {
+                output = Some(idx);
             }
         }
-    }
-
-    pub fn max_energy(&self) -> f32 {
-        self.0.last().map(|v| v.total_std_free_energy).unwrap_or(0.0)
-    }
-
-    pub fn min_energy(&self) -> f32 {
-        self.0.last().map(|v| v.total_std_free_energy).unwrap_or(0.0)
+        output
     }
 }
 

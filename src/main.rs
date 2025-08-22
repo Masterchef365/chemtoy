@@ -409,10 +409,10 @@ impl ChemToyApp {
                         ui.label("Gravity: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.gravity).speed(1e-2));
                     });
-                    /*ui.horizontal(|ui| {
+                    ui.horizontal(|ui| {
                         ui.label("Speed limit: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
-                    });*/
+                    });
                     ui.horizontal(|ui| {
                         ui.label("Kinetic energy scale factor: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.ke_scale_factor).speed(1e-2));
