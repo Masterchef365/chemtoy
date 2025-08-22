@@ -253,7 +253,6 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
         .collect();
 
     let mut output = ProductSet::default();
-    let start = std::time::Instant::now();
     find_decompositions_rec(
         laws,
         compound,
@@ -264,10 +263,6 @@ fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> 
 
     output.0.sort_by(|a, b| a.total_std_free_energy.partial_cmp(&b.total_std_free_energy).unwrap());
 
-    dbg!(
-        laws.compounds[compound_id].display(&laws.elements),
-        start.elapsed().as_secs_f32()
-    );
     output
 }
 
