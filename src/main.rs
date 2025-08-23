@@ -138,9 +138,14 @@ impl ChemToyApp {
             mass: 15.999,
             symbol: "O".into(),
         });
+        let e = elements.push(Element {
+            mass: 1e-3,
+            symbol: "e".into(),
+        });
+
 
         let compounds = Compounds::new(vec![
-            //Compound::new("e-", -1, 0.0, &[], &elements),
+            Compound::new("e-", -1, 0.0, &[(e, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H+", 1, 1516.99, &[(hydrogen, 1)], &elements),

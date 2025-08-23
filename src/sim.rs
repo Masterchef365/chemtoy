@@ -194,6 +194,8 @@ impl Sim {
                         .flatten()
                         .collect();
 
+                    let spacing = (cfg.particle_radius + margin) * 2.0;
+
                     // Is anything nearby? Then we can't split.
                     for neighbor in accel.query_neighbors_fast(i, points[i]) {
                         if neighbor == i {
@@ -202,7 +204,7 @@ impl Sim {
 
                         let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
                         let safe_distance =
-                            (cfg.particle_radius + margin) * 2.0 * (children.len() as f32);
+                            spacing * children.len() as f32;
                         if distance < safe_distance
                             || particle.pos.x < safe_distance
                             || cfg.dimensions.x - particle.pos.x < safe_distance
