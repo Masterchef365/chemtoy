@@ -50,7 +50,7 @@ impl Sim {
             let speed_limit_sq = cfg.speed_limit.powi(2);
             for particle in &mut self.particles {
                 if particle.vel.length_sq() > speed_limit_sq {
-                    eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
+                    //eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
                     particle.vel = particle.vel.normalized() * cfg.speed_limit * 0.9;
                 }
             }
@@ -195,16 +195,17 @@ impl Sim {
                         .collect();
 
                     let spacing = (cfg.particle_radius + margin) * 2.0;
+                    let our_radius = spacing * children.len() as f32;
+                    let safe_distance = our_radius + cfg.particle_radius;
 
                     // Is anything nearby? Then we can't split.
-                    for neighbor in accel.query_neighbors_fast(i, points[i]) {
+                    //for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                    for neighbor in 0..self.particles.len() {
                         if neighbor == i {
                             continue;
                         }
 
                         let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
-                        let safe_distance =
-                            spacing * children.len() as f32;
                         if distance < safe_distance
                             || particle.pos.x < safe_distance
                             || cfg.dimensions.x - particle.pos.x < safe_distance
@@ -227,8 +228,22 @@ impl Sim {
 
                     let direction = direction.rot90();
                     for (idx, particle) in children.iter_mut().enumerate() {
-                        let i = idx as f32 * 2.0 - 1.0;
-                        particle.pos += direction * i * cfg.particle_radius * 2.0;
+                        particle.pos += direction * idx as f32 * spacing;
+                    }
+
+                    for (child_idx, child) in children.iter().enumerate() {
+                        for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                        //for neighbor in 0..self.particles.len() {
+                            if neighbor == i {
+                                continue;
+                            }
+
+                            let distance = child.pos.distance(self.particles[neighbor].pos);
+
+                            if distance < safe_distance {
+                                println!("Child {child_idx} of {i} intersected {neighbor}");
+                            }
+                        }
                     }
 
                     if let Some((first, xs)) = children.split_first() {
