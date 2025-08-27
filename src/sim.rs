@@ -71,21 +71,25 @@ impl Sim {
             return None;
         }
 
-        let intersect = self.calculate_min_intersection(cfg, chem, &accel);
+        let mut max_dt = cfg.dt;
 
-        if intersect.time < cfg.max_collision_time {
-            self.handle_collision(cfg, chem, intersect);
-            None
-        } else {
-            // Cowardly move all particles partway to the precticted intersection time
-            let dt = intersect.time * 0.9;
-            timestep_particles(&mut self.particles, dt);
-            for particle in &mut self.particles {
-                particle.vel.y += cfg.gravity * dt; // pixels/frame^2
+        if let Some(intersect) = self.calculate_min_intersection(cfg, chem, &accel) {
+            max_dt = max_dt.min(intersect.time);
+
+            if intersect.time < cfg.max_collision_time {
+                self.handle_collision(cfg, chem, intersect);
+                return None;
             }
-
-            Some(dt)
         }
+
+        // Cowardly move all particles partway to the precticted intersection time
+        let dt = max_dt * 0.9;
+        timestep_particles(&mut self.particles, dt);
+        for particle in &mut self.particles {
+            particle.vel.y += cfg.gravity * dt; // pixels/frame^2
+        }
+
+        Some(dt)
     }
 
     fn enforce_speed_limit(&mut self, cfg: &SimConfig) {
@@ -98,7 +102,7 @@ impl Sim {
         }
     }
 
-    fn calculate_min_intersection(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> Intersection {
+    fn calculate_min_intersection(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> Option<Intersection> {
         let mut min_dt = cfg.dt;
 
         let mut min_particle_indices = None;
@@ -125,16 +129,17 @@ impl Sim {
             }
 
             let particle = &self.particles[i];
-            let (boundary_dt, new_vel) = time_of_intersection_boundary(
+            if let Some((boundary_dt, new_vel)) = time_of_intersection_boundary(
                 particle.pos,
                 particle.vel,
                 cfg.dimensions,
                 cfg.particle_radius,
-            ).unwrap();
-            if boundary_dt < min_dt {
-                min_boundary_vel_idx = Some((i, new_vel));
-                min_particle_indices = None;
-                min_dt = boundary_dt;
+            ) {
+                if boundary_dt < min_dt {
+                    min_boundary_vel_idx = Some((i, new_vel));
+                    min_particle_indices = None;
+                    min_dt = boundary_dt;
+                }
             }
         }
 
@@ -142,10 +147,11 @@ impl Sim {
         let (index, data) = match (min_particle_indices, min_boundary_vel_idx) {
             (Some((index, neighbor)), None)  => (index, IntersectionData::Particle { neighbor }),
             (None, Some((index, mirrored_velocity))) => (index, IntersectionData::Wall { mirrored_velocity }),
+            (None, None) => return None,
             _ => unreachable!(),
         };
 
-        Intersection { time: min_dt, data, index }
+        Some(Intersection { time: min_dt, data, index })
     }
 
     fn handle_collision(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, intersection: Intersection) {
