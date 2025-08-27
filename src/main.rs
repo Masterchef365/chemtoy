@@ -309,7 +309,7 @@ impl ChemToyApp {
             scene_rect: Rect::ZERO,
             paused: false,
             with_jittered_grid: false,
-            screen: Screen::ChemBook,
+            screen: Screen::Simulation,
             vis_cfg: Default::default(),
         }
     }

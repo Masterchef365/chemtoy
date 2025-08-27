@@ -361,7 +361,7 @@ impl Default for SimConfig {
             fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
-            ke_scale_factor: 1.2432348, // Arbitrary
+            ke_scale_factor: 1e-2, // Arbitrary
         }
     }
 }
