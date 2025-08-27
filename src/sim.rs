@@ -33,7 +33,8 @@ impl Sim {
         Self { particles: vec![] }
     }
 
-    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) {
+    /// Steps forward by as much time as possible up to cfg.dt, returning the actual dt if time was advanced. If cfg.fill_timestep is false, acts like single_step().
+    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
 
@@ -41,220 +42,14 @@ impl Sim {
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
-        'timeloop: while elapsed < cfg.dt {
+        while elapsed < cfg.dt {
             if remaining_loops == 0 {
                 break;
             }
             remaining_loops -= 1;
 
-            let speed_limit_sq = cfg.speed_limit.powi(2);
-            for particle in &mut self.particles {
-                if particle.vel.length_sq() > speed_limit_sq {
-                    //eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
-                    particle.vel = particle.vel.normalized() * cfg.speed_limit * 0.9;
-                }
-            }
-
-            let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-            let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
-
-            let mut min_dt = cfg.dt;
-
-            let mut min_particle_indices = None;
-            let mut min_boundary_vel_idx = None;
-            for i in 0..self.particles.len() {
-                // Check time of intersection with neighbors
-                for neighbor in accel.query_neighbors_fast(i, points[i]) {
-                    //for neighbor in i + 1..self.particles.len() {
-                    let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-
-                    // TODO: Cache these intersections AND evict the cache ...
-                    if let Some(intersection_dt) = time_of_intersection_particles(
-                        p2.pos - p1.pos,
-                        p2.vel - p1.vel,
-                        cfg.particle_radius * 2.0,
-                    ) {
-                        assert!(intersection_dt >= 0.0);
-                        if intersection_dt < min_dt {
-                            min_dt = intersection_dt;
-                            min_particle_indices = Some((i, neighbor));
-                            min_boundary_vel_idx = None;
-                        }
-                    }
-                }
-
-                let particle = &self.particles[i];
-                if let Some((boundary_dt, new_vel)) = time_of_intersection_boundary(
-                    particle.pos,
-                    particle.vel,
-                    cfg.dimensions,
-                    cfg.particle_radius,
-                ) {
-                    if boundary_dt < min_dt {
-                        min_boundary_vel_idx = Some((i, new_vel));
-                        min_particle_indices = None;
-                        min_dt = boundary_dt;
-                    }
-                }
-            }
-
-            if min_dt < cfg.max_collision_time {
-                // Interact the particles. max_collision_time should be small enough not to neglect any
-                // external forces(!)
-                if let Some((i, vel)) = min_boundary_vel_idx {
-                    self.particles[i].vel = vel;
-                }
-
-                if let Some((i, neighbor)) = min_particle_indices {
-                    // TODO: Make the sorted keys a type...
-                    let mut keys = [
-                        self.particles[i].compound,
-                        self.particles[neighbor].compound,
-                    ];
-                    keys.sort_by_key(|CompoundId(i)| *i);
-                    let [a, b] = keys;
-
-                    let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
-                    let c1 = &chem.laws.compounds[p1.compound];
-                    let c2 = &chem.laws.compounds[p2.compound];
-
-                    let m1 = c1.mass;
-                    let m2 = c2.mass;
-
-                    let rel_pos = p2.pos - p1.pos;
-                    let rel_dir = rel_pos.normalized();
-                    let rel_vel = p2.vel - p1.vel;
-
-                    // Velocity at point of contact
-                    let vel_component = rel_vel.dot(rel_dir).abs();
-
-                    let total_mass = m1 + m2;
-                    //const KG_PER_DALTON: f32 = 1.6605390e-27;
-
-                    let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
-
-                    if kinetic_energy * cfg.ke_scale_factor > 500.0 {
-                        p1.to_decompose = Some(kinetic_energy);
-                        p2.to_decompose = Some(kinetic_energy);
-                    }
-
-                    //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
-                    p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
-                    p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
-
-                    if let Some(product_id) = chem.deriv.synthesis.get(&(a, b)) {
-                        self.particles[i].compound = *product_id;
-                        self.particles.remove(neighbor);
-                        continue 'timeloop;
-                    }
-                }
-            } else {
-                // Cowardly move halfway to the goal
-                let dt = min_dt * 0.9;
-                timestep_particles(&mut self.particles, dt);
-                for particle in &mut self.particles {
-                    particle.vel.y += cfg.gravity * dt; // pixels/frame^2
-                }
-                if remaining_loops == 0 {
-                    dbg!(elapsed, dt);
-                }
+            if let Some(dt) = self.single_step(cfg, chem) {
                 elapsed += dt;
-            }
-
-            // Decompose one particle if possible
-            let margin = 1e-2;
-
-            'particles: for i in 0..self.particles.len() {
-                if let Some(kinetic_energy) = self.particles[i].to_decompose {
-                    //let compound_id = self.particles[i].compound;
-                    //let compound = &chem.laws.compounds[compound_id];
-
-                    let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
-
-                    let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
-                    let Some(last_product_idx) = all_products.nearest_energy(threshold_energy)
-                    else {
-                        continue 'particles;
-                    };
-
-                    let product_idx = rand::thread_rng().gen_range(0..=last_product_idx);
-
-                    let particle = self.particles[i];
-                    let products = &all_products.0[product_idx];
-
-                    let mut children: Vec<Particle> = products
-                        .compounds
-                        .iter()
-                        .map(|(&compound, &n)| {
-                            (0..n).map(move |_| Particle {
-                                compound,
-                                ..particle
-                            })
-                        })
-                        .flatten()
-                        .collect();
-
-                    let spacing = (cfg.particle_radius + margin) * 2.0;
-                    let our_radius = spacing * children.len() as f32;
-                    let safe_distance = our_radius + cfg.particle_radius;
-
-                    // Is anything nearby? Then we can't split.
-                    //for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
-                    for neighbor in 0..self.particles.len() {
-                        if neighbor == i {
-                            continue;
-                        }
-
-                        let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
-                        if distance < safe_distance
-                            || particle.pos.x < safe_distance
-                            || cfg.dimensions.x - particle.pos.x < safe_distance
-                            || particle.pos.y < safe_distance
-                            || cfg.dimensions.y - particle.pos.y < safe_distance
-                        {
-                            continue 'particles;
-                        }
-                    }
-
-                    self.particles[i].to_decompose = None;
-
-                    // Determine where to put the new particles
-                    let mut direction = self.particles[i].vel;
-                    if direction.length_sq() == 0.0 {
-                        direction = Vec2::Y;
-                    } else {
-                        direction = direction.normalized();
-                    }
-
-                    let direction = direction.rot90();
-                    for (idx, particle) in children.iter_mut().enumerate() {
-                        particle.pos += direction * idx as f32 * spacing;
-                    }
-
-                    for (child_idx, child) in children.iter().enumerate() {
-                        for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
-                        //for neighbor in 0..self.particles.len() {
-                            if neighbor == i {
-                                continue;
-                            }
-
-                            let distance = child.pos.distance(self.particles[neighbor].pos);
-
-                            if distance < safe_distance {
-                                println!("Child {child_idx} of {i} intersected {neighbor}");
-                            }
-                        }
-                    }
-
-                    if let Some((first, xs)) = children.split_first() {
-                        self.particles[i] = *first;
-                        for particle in xs {
-                            self.particles.push(*particle);
-                        }
-                    }
-
-                    continue 'timeloop;
-                }
             }
 
             if !cfg.fill_timestep {
@@ -262,15 +57,253 @@ impl Sim {
             }
         }
 
-        /*
-        // Do collisions
-        for i in 0..self.particles.len() {
-            for neighbor in accel.query_neighbors(&points, i, points[i]) {
-                            }
-        }
-        */
+        elapsed
+    }
 
-        // Add gravity
+    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
+        // Generate an immutable map of the scene
+        self.enforce_speed_limit(cfg);
+        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
+        let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
+
+        // Try decomposing some particles
+        if self.try_decompose(cfg, chem, &accel) {
+            return None;
+        }
+
+        let intersect = self.calculate_min_intersection(cfg, chem, &accel);
+
+        if intersect.time < cfg.max_collision_time {
+            self.handle_collision(cfg, chem, intersect);
+            None
+        } else {
+            // Cowardly move all particles partway to the precticted intersection time
+            let dt = intersect.time * 0.9;
+            timestep_particles(&mut self.particles, dt);
+            for particle in &mut self.particles {
+                particle.vel.y += cfg.gravity * dt; // pixels/frame^2
+            }
+
+            Some(dt)
+        }
+    }
+
+    fn enforce_speed_limit(&mut self, cfg: &SimConfig) {
+        let speed_limit_sq = cfg.speed_limit.powi(2);
+        for particle in &mut self.particles {
+            if particle.vel.length_sq() > speed_limit_sq {
+                //eprintln!("OVER SPEED LIMIT {:?}", particle.vel);
+                particle.vel = particle.vel.normalized() * cfg.speed_limit * 0.9;
+            }
+        }
+    }
+
+    fn calculate_min_intersection(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> Intersection {
+        let mut min_dt = cfg.dt;
+
+        let mut min_particle_indices = None;
+        let mut min_boundary_vel_idx = None;
+        for i in 0..self.particles.len() {
+            // Check time of intersection with neighbors
+            for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                //for neighbor in i + 1..self.particles.len() {
+                let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+
+                // TODO: Cache these intersections AND evict the cache ...
+                if let Some(intersection_dt) = time_of_intersection_particles(
+                    p2.pos - p1.pos,
+                    p2.vel - p1.vel,
+                    cfg.particle_radius * 2.0,
+                ) {
+                    assert!(intersection_dt >= 0.0);
+                    if intersection_dt < min_dt {
+                        min_dt = intersection_dt;
+                        min_particle_indices = Some((i, neighbor));
+                        min_boundary_vel_idx = None;
+                    }
+                }
+            }
+
+            let particle = &self.particles[i];
+            let (boundary_dt, new_vel) = time_of_intersection_boundary(
+                particle.pos,
+                particle.vel,
+                cfg.dimensions,
+                cfg.particle_radius,
+            ).unwrap();
+            if boundary_dt < min_dt {
+                min_boundary_vel_idx = Some((i, new_vel));
+                min_particle_indices = None;
+                min_dt = boundary_dt;
+            }
+        }
+
+        // TODO: This is silly.
+        let (index, data) = match (min_particle_indices, min_boundary_vel_idx) {
+            (Some((index, neighbor)), None)  => (index, IntersectionData::Particle { neighbor }),
+            (None, Some((index, mirrored_velocity))) => (index, IntersectionData::Wall { mirrored_velocity }),
+            _ => unreachable!(),
+        };
+
+        Intersection { time: min_dt, data, index }
+    }
+
+    fn handle_collision(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, intersection: Intersection) {
+        match intersection.data {
+            IntersectionData::Wall { mirrored_velocity } => {
+                self.particles[intersection.index].vel = mirrored_velocity;
+            },
+            IntersectionData::Particle { neighbor } => {
+                self.try_synthesis(cfg, chem, intersection.index, neighbor);
+            }
+        }
+    }
+
+    fn try_synthesis(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, i: usize, neighbor: usize) -> bool {
+        // Synthesis
+        // TODO: Make the sorted keys a type...
+        let mut keys = [
+            self.particles[i].compound,
+            self.particles[neighbor].compound,
+        ];
+        keys.sort_by_key(|CompoundId(i)| *i);
+        let [a, b] = keys;
+
+        let [p1, p2] = self.particles.get_disjoint_mut([i, neighbor]).unwrap();
+        let c1 = &chem.laws.compounds[p1.compound];
+        let c2 = &chem.laws.compounds[p2.compound];
+
+        let m1 = c1.mass;
+        let m2 = c2.mass;
+
+        let rel_pos = p2.pos - p1.pos;
+        let rel_dir = rel_pos.normalized();
+        let rel_vel = p2.vel - p1.vel;
+
+        // Velocity at point of contact
+        let vel_component = rel_vel.dot(rel_dir).abs();
+
+        let total_mass = m1 + m2;
+        //const KG_PER_DALTON: f32 = 1.6605390e-27;
+
+        let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
+
+        if kinetic_energy * cfg.ke_scale_factor > 500.0 {
+            p1.to_decompose = Some(kinetic_energy);
+            p2.to_decompose = Some(kinetic_energy);
+        }
+
+        //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
+        p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
+        p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
+
+        // Do the synthesizing
+        if let Some(product_id) = chem.deriv.synthesis.get(&(a, b)) {
+            self.particles[i].compound = *product_id;
+            self.particles.remove(neighbor);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn try_decompose(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> bool {
+        // Decompose one particle if possible
+        let margin = 1e-2;
+
+        'particles: for i in 0..self.particles.len() {
+            if let Some(kinetic_energy) = self.particles[i].to_decompose {
+                //let compound_id = self.particles[i].compound;
+                //let compound = &chem.laws.compounds[compound_id];
+
+                let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
+
+                let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
+                let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
+                    continue 'particles;
+                };
+
+                let product_idx = rand::thread_rng().gen_range(0..=last_product_idx);
+
+                let particle = self.particles[i];
+                let products = &all_products.0[product_idx];
+
+                let mut children: Vec<Particle> = products
+                    .compounds
+                    .iter()
+                    .map(|(&compound, &n)| {
+                        (0..n).map(move |_| Particle {
+                            compound,
+                            ..particle
+                        })
+                    })
+                    .flatten()
+                    .collect();
+
+                let spacing = (cfg.particle_radius + margin) * 2.0;
+                let our_radius = spacing * children.len() as f32;
+                let safe_distance = our_radius + cfg.particle_radius;
+
+                // Is anything nearby? Then we can't split.
+                for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                //for neighbor in 0..self.particles.len() {
+                    if neighbor == i {
+                        continue;
+                    }
+
+                    let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
+                    if distance < safe_distance
+                        || particle.pos.x < safe_distance
+                        || cfg.dimensions.x - particle.pos.x < safe_distance
+                        || particle.pos.y < safe_distance
+                        || cfg.dimensions.y - particle.pos.y < safe_distance
+                    {
+                        continue 'particles;
+                    }
+                }
+
+                self.particles[i].to_decompose = None;
+
+                // Determine where to put the new particles
+                let mut direction = self.particles[i].vel;
+                if direction.length_sq() == 0.0 {
+                    direction = Vec2::Y;
+                } else {
+                    direction = direction.normalized();
+                }
+
+                let direction = direction.rot90();
+                for (idx, particle) in children.iter_mut().enumerate() {
+                    particle.pos += direction * idx as f32 * spacing;
+                }
+
+                for (child_idx, child) in children.iter().enumerate() {
+                    for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                        //for neighbor in 0..self.particles.len() {
+                        if neighbor == i {
+                            continue;
+                        }
+
+                        let distance = child.pos.distance(self.particles[neighbor].pos);
+
+                        if distance < safe_distance {
+                            println!("Child {child_idx} of {i} intersected {neighbor}");
+                        }
+                    }
+                }
+
+                if let Some((first, xs)) = children.split_first() {
+                    self.particles[i] = *first;
+                    for particle in xs {
+                        self.particles.push(*particle);
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Returns true if a particle can be placed here
@@ -427,5 +460,22 @@ fn time_of_intersection_boundary(
         (Some(xtime), None) => Some((xtime, Vec2::new(-vel.x, vel.y))),
         (None, Some(ytime)) | (Some(_), Some(ytime)) => Some((ytime, Vec2::new(vel.x, -vel.y))),
         (None, None) => None,
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Intersection {
+    time: f32,
+    data: IntersectionData,
+    index: usize,
+}
+
+#[derive(Clone, Copy)]
+enum IntersectionData {
+    Wall {
+        mirrored_velocity: Vec2,
+    },
+    Particle {
+        neighbor: usize,
     }
 }
