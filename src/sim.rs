@@ -245,95 +245,97 @@ impl Sim {
         let margin = 1e-2;
 
         'particles: for i in 0..self.particles.len() {
-            if let Some(kinetic_energy) = self.particles[i].to_decompose {
-                //let compound_id = self.particles[i].compound;
-                //let compound = &chem.laws.compounds[compound_id];
+            let Some(kinetic_energy) = self.particles[i].to_decompose else {
+                continue;
+            };
 
-                let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
+            //let compound_id = self.particles[i].compound;
+            //let compound = &chem.laws.compounds[compound_id];
 
-                let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
-                let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
-                    continue 'particles;
-                };
+            let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
 
-                let product_idx = rand::thread_rng().gen_range(0..=last_product_idx);
+            let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
+            let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
+                continue 'particles;
+            };
 
-                let particle = self.particles[i];
-                let products = &all_products.0[product_idx];
+            let product_idx = rand::thread_rng().gen_range(0..=last_product_idx);
 
-                let mut children: Vec<Particle> = products
-                    .compounds
-                    .iter()
-                    .map(|(&compound, &n)| {
-                        (0..n).map(move |_| Particle {
-                            compound,
-                            ..particle
-                        })
+            let particle = self.particles[i];
+            let products = &all_products.0[product_idx];
+
+            let mut children: Vec<Particle> = products
+                .compounds
+                .iter()
+                .map(|(&compound, &n)| {
+                    (0..n).map(move |_| Particle {
+                        compound,
+                        ..particle
                     })
-                    .flatten()
-                    .collect();
+                })
+                .flatten()
+                .collect();
 
-                let spacing = (cfg.particle_radius + margin) * 2.0;
-                let our_radius = spacing * children.len() as f32;
-                let safe_distance = our_radius + cfg.particle_radius;
+            let spacing = (cfg.particle_radius + margin) * 2.0;
+            let our_radius = spacing * children.len() as f32;
+            let safe_distance = our_radius + cfg.particle_radius;
 
-                // Is anything nearby? Then we can't split.
+            // Is anything nearby? Then we can't split.
+            for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                //for neighbor in 0..self.particles.len() {
+                if neighbor == i {
+                    continue;
+                }
+
+                let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
+                if distance < safe_distance
+                    || particle.pos.x < safe_distance
+                    || cfg.dimensions.x - particle.pos.x < safe_distance
+                    || particle.pos.y < safe_distance
+                    || cfg.dimensions.y - particle.pos.y < safe_distance
+                {
+                    continue 'particles;
+                }
+            }
+
+            self.particles[i].to_decompose = None;
+
+            // Determine where to put the new particles
+            let mut direction = self.particles[i].vel;
+            if direction.length_sq() == 0.0 {
+                direction = Vec2::Y;
+            } else {
+                direction = direction.normalized();
+            }
+
+            let direction = direction.rot90();
+            for (idx, particle) in children.iter_mut().enumerate() {
+                particle.pos += direction * idx as f32 * spacing;
+            }
+
+            for (child_idx, child) in children.iter().enumerate() {
                 for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
                     //for neighbor in 0..self.particles.len() {
                     if neighbor == i {
                         continue;
                     }
 
-                    let distance = self.particles[neighbor].pos.distance(self.particles[i].pos);
-                    if distance < safe_distance
-                        || particle.pos.x < safe_distance
-                        || cfg.dimensions.x - particle.pos.x < safe_distance
-                        || particle.pos.y < safe_distance
-                        || cfg.dimensions.y - particle.pos.y < safe_distance
-                    {
-                        continue 'particles;
+                    let distance = child.pos.distance(self.particles[neighbor].pos);
+
+                    if distance < cfg.particle_radius * 2.0 {
+                        println!("Child {child_idx} of {i} intersected {neighbor}");
                     }
                 }
-
-                self.particles[i].to_decompose = None;
-
-                // Determine where to put the new particles
-                let mut direction = self.particles[i].vel;
-                if direction.length_sq() == 0.0 {
-                    direction = Vec2::Y;
-                } else {
-                    direction = direction.normalized();
-                }
-
-                let direction = direction.rot90();
-                for (idx, particle) in children.iter_mut().enumerate() {
-                    particle.pos += direction * idx as f32 * spacing;
-                }
-
-                for (child_idx, child) in children.iter().enumerate() {
-                    for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
-                        //for neighbor in 0..self.particles.len() {
-                        if neighbor == i {
-                            continue;
-                        }
-
-                        let distance = child.pos.distance(self.particles[neighbor].pos);
-
-                        if distance < safe_distance {
-                            println!("Child {child_idx} of {i} intersected {neighbor}");
-                        }
-                    }
-                }
-
-                if let Some((first, xs)) = children.split_first() {
-                    self.particles[i] = *first;
-                    for particle in xs {
-                        self.particles.push(*particle);
-                    }
-                }
-
-                return true;
             }
+
+            if let Some((first, xs)) = children.split_first() {
+                self.particles[i] = *first;
+                for particle in xs {
+                    self.particles.push(*particle);
+                }
+            }
+
+            return true;
         }
 
         false
