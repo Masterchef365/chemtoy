@@ -143,7 +143,6 @@ impl ChemToyApp {
             symbol: "e".into(),
         });
 
-
         let compounds = Compounds::new(vec![
             Compound::new("e-", -1, 0.0, &[(e, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
@@ -422,7 +421,6 @@ impl ChemToyApp {
                         ui.label("Kinetic energy scale factor: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.ke_scale_factor).speed(1e-2));
                     });
-
 
                     // TODO: Neglects mass...
                     let potential_energy = self

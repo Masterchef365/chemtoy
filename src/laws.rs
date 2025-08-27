@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Formula(pub BTreeMap<ElementId, usize>);

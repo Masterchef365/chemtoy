@@ -1,4 +1,4 @@
-use crate::laws::{ChemicalWorld, CompoundId, Laws};
+use crate::laws::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
@@ -102,7 +102,12 @@ impl Sim {
         }
     }
 
-    fn calculate_min_intersection(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> Option<Intersection> {
+    fn calculate_min_intersection(
+        &mut self,
+        cfg: &SimConfig,
+        chem: &ChemicalWorld,
+        accel: &QueryAccelerator,
+    ) -> Option<Intersection> {
         let mut min_dt = cfg.dt;
 
         let mut min_particle_indices = None;
@@ -145,27 +150,44 @@ impl Sim {
 
         // TODO: This is silly.
         let (index, data) = match (min_particle_indices, min_boundary_vel_idx) {
-            (Some((index, neighbor)), None)  => (index, IntersectionData::Particle { neighbor }),
-            (None, Some((index, mirrored_velocity))) => (index, IntersectionData::Wall { mirrored_velocity }),
+            (Some((index, neighbor)), None) => (index, IntersectionData::Particle { neighbor }),
+            (None, Some((index, mirrored_velocity))) => {
+                (index, IntersectionData::Wall { mirrored_velocity })
+            }
             (None, None) => return None,
             _ => unreachable!(),
         };
 
-        Some(Intersection { time: min_dt, data, index })
+        Some(Intersection {
+            time: min_dt,
+            data,
+            index,
+        })
     }
 
-    fn handle_collision(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, intersection: Intersection) {
+    fn handle_collision(
+        &mut self,
+        cfg: &SimConfig,
+        chem: &ChemicalWorld,
+        intersection: Intersection,
+    ) {
         match intersection.data {
             IntersectionData::Wall { mirrored_velocity } => {
                 self.particles[intersection.index].vel = mirrored_velocity;
-            },
+            }
             IntersectionData::Particle { neighbor } => {
                 self.try_synthesis(cfg, chem, intersection.index, neighbor);
             }
         }
     }
 
-    fn try_synthesis(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, i: usize, neighbor: usize) -> bool {
+    fn try_synthesis(
+        &mut self,
+        cfg: &SimConfig,
+        chem: &ChemicalWorld,
+        i: usize,
+        neighbor: usize,
+    ) -> bool {
         // Synthesis
         // TODO: Make the sorted keys a type...
         let mut keys = [
@@ -213,7 +235,12 @@ impl Sim {
         }
     }
 
-    fn try_decompose(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, accel: &QueryAccelerator) -> bool {
+    fn try_decompose(
+        &mut self,
+        cfg: &SimConfig,
+        chem: &ChemicalWorld,
+        accel: &QueryAccelerator,
+    ) -> bool {
         // Decompose one particle if possible
         let margin = 1e-2;
 
@@ -252,7 +279,7 @@ impl Sim {
 
                 // Is anything nearby? Then we can't split.
                 for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
-                //for neighbor in 0..self.particles.len() {
+                    //for neighbor in 0..self.particles.len() {
                     if neighbor == i {
                         continue;
                     }
@@ -478,10 +505,6 @@ struct Intersection {
 
 #[derive(Clone, Copy)]
 enum IntersectionData {
-    Wall {
-        mirrored_velocity: Vec2,
-    },
-    Particle {
-        neighbor: usize,
-    }
+    Wall { mirrored_velocity: Vec2 },
+    Particle { neighbor: usize },
 }
