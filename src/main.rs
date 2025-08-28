@@ -405,10 +405,10 @@ impl ChemToyApp {
                         ui.label("Particle radius: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.particle_radius).speed(1e-2));
                     });
-                    ui.horizontal(|ui| {
+                    /*ui.horizontal(|ui| {
                         ui.label("Max collision time: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.max_collision_time).speed(1e-2));
-                    });
+                    });*/
                     ui.horizontal(|ui| {
                         ui.label("Gravity: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.gravity).speed(1e-2));
@@ -419,7 +419,7 @@ impl ChemToyApp {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Kinetic energy scale factor: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.ke_scale_factor).speed(1e-2));
+                        ui.add(DragValue::new(&mut self.sim_cfg.kjmol_per_sim_energy).speed(1e-2));
                     });
 
                     // TODO: Neglects mass...

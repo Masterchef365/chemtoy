@@ -21,11 +21,11 @@ pub struct SimConfig {
     pub dimensions: Vec2,
     pub dt: f32,
     pub particle_radius: f32,
-    pub max_collision_time: f32,
+    //pub max_collision_time: f32,
     pub fill_timestep: bool,
     pub gravity: f32,
     pub speed_limit: f32,
-    pub ke_scale_factor: f32,
+    pub kjmol_per_sim_energy: f32,
 }
 
 impl Sim {
@@ -76,7 +76,8 @@ impl Sim {
         if let Some(intersect) = self.calculate_min_intersection(cfg, chem, &accel) {
             max_dt = max_dt.min(intersect.time);
 
-            if intersect.time < cfg.max_collision_time {
+            let max_collision_time = cfg.dt / 2.0;
+            if intersect.time < max_collision_time {
                 self.handle_collision(cfg, chem, intersect);
                 return None;
             }
@@ -125,7 +126,7 @@ impl Sim {
                     cfg.particle_radius * 2.0,
                 ) {
                     assert!(intersection_dt >= 0.0);
-                    if intersection_dt < min_dt {
+                    if intersection_dt <= min_dt {
                         min_dt = intersection_dt;
                         min_particle_indices = Some((i, neighbor));
                         min_boundary_vel_idx = None;
@@ -216,7 +217,7 @@ impl Sim {
 
         let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
 
-        if kinetic_energy * cfg.ke_scale_factor > 500.0 {
+        if kinetic_energy * cfg.kjmol_per_sim_energy > 500.0 {
             p1.to_decompose = Some(kinetic_energy);
             p2.to_decompose = Some(kinetic_energy);
         }
@@ -245,7 +246,7 @@ impl Sim {
         let margin = 1e-2;
 
         'particles: for i in 0..self.particles.len() {
-            let Some(kinetic_energy) = self.particles[i].to_decompose else {
+            let Some(available_energy) = self.particles[i].to_decompose else {
                 continue;
             };
 
@@ -254,7 +255,7 @@ impl Sim {
 
             let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
 
-            let threshold_energy = kinetic_energy * cfg.ke_scale_factor;
+            let threshold_energy = available_energy * cfg.kjmol_per_sim_energy;
             let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
                 continue 'particles;
             };
@@ -264,12 +265,19 @@ impl Sim {
             let particle = self.particles[i];
             let products = &all_products.0[product_idx];
 
+            let delta_g = products.total_std_free_energy - chem.laws.compounds[particle.compound].std_free_energy;
+
+            let velocity_scaling = (delta_g / threshold_energy).sqrt();
+
+            //products.total_std_free_energy
+
             let mut children: Vec<Particle> = products
                 .compounds
                 .iter()
                 .map(|(&compound, &n)| {
                     (0..n).map(move |_| Particle {
                         compound,
+                        vel: particle.vel * velocity_scaling,
                         ..particle
                     })
                 })
@@ -357,11 +365,11 @@ impl Default for SimConfig {
             dimensions: Vec2::new(500., 500.),
             dt: 1. / 60.,
             particle_radius: 5.0,
-            max_collision_time: 1e-2,
+            //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
-            ke_scale_factor: 1e-2, // Arbitrary
+            kjmol_per_sim_energy: 1e-2, // Arbitrary
         }
     }
 }
