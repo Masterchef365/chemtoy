@@ -177,12 +177,12 @@ impl Sim {
                 self.particles[intersection.index].vel = mirrored_velocity;
             }
             IntersectionData::Particle { neighbor } => {
-                self.try_synthesis(cfg, chem, intersection.index, neighbor);
+                self.handle_collision_particle(cfg, chem, intersection.index, neighbor);
             }
         }
     }
 
-    fn try_synthesis(
+    fn handle_collision_particle(
         &mut self,
         cfg: &SimConfig,
         chem: &ChemicalWorld,
@@ -215,23 +215,36 @@ impl Sim {
         let total_mass = m1 + m2;
         //const KG_PER_DALTON: f32 = 1.6605390e-27;
 
-        let kinetic_energy = vel_component.powi(2) * total_mass / 2.0;
+        let kinetic_energy_component = vel_component.powi(2) * total_mass / 2.0;
 
-        if kinetic_energy * cfg.kjmol_per_sim_energy > 500.0 {
-            p1.to_decompose = Some(kinetic_energy);
-            p2.to_decompose = Some(kinetic_energy);
+        if kinetic_energy_component * cfg.kjmol_per_sim_energy > 500.0 {
+            p1.to_decompose = Some(kinetic_energy_component);
+            p2.to_decompose = Some(kinetic_energy_component);
         }
 
         //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
-        p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
-        p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
 
         // Do the synthesizing
         if let Some(product_id) = chem.deriv.synthesis.get(&(a, b)) {
+            let new_vel = (p1.vel * m1 + p2.vel * m2) / total_mass;
+
+            let res = &chem.laws.compounds[*product_id];
+            let delta_g = c1.std_free_energy + c2.std_free_energy - res.std_free_energy;
+            let ke = new_vel.length_sq() * total_mass / 2.0;
+            let ke = ke * cfg.kjmol_per_sim_energy;
+
+            let scale_factor = ((ke + delta_g) / ke).sqrt();
+
             self.particles[i].compound = *product_id;
+            self.particles[i].vel = new_vel * scale_factor;
+
             self.particles.remove(neighbor);
+
             true
         } else {
+            p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
+            p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
+
             false
         }
     }
@@ -246,7 +259,7 @@ impl Sim {
         let margin = 1e-2;
 
         'particles: for i in 0..self.particles.len() {
-            let Some(available_energy) = self.particles[i].to_decompose else {
+            let Some(particle_energy) = self.particles[i].to_decompose else {
                 continue;
             };
 
@@ -255,8 +268,8 @@ impl Sim {
 
             let all_products = &chem.deriv.decompositions[&self.particles[i].compound];
 
-            let threshold_energy = available_energy * cfg.kjmol_per_sim_energy;
-            let Some(last_product_idx) = all_products.nearest_energy(threshold_energy) else {
+            let particle_energy_kjmol = particle_energy * cfg.kjmol_per_sim_energy;
+            let Some(last_product_idx) = all_products.nearest_energy(particle_energy_kjmol) else {
                 continue 'particles;
             };
 
@@ -267,7 +280,7 @@ impl Sim {
 
             let delta_g = products.total_std_free_energy - chem.laws.compounds[particle.compound].std_free_energy;
 
-            let velocity_scaling = (delta_g.abs() / threshold_energy).sqrt();
+            let velocity_scaling = ((particle_energy_kjmol - delta_g / particle_energy_kjmol) / particle_energy_kjmol).sqrt();
 
             //products.total_std_free_energy
 
