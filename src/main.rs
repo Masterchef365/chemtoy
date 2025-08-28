@@ -518,7 +518,7 @@ impl ChemToyApp {
     }
 
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::left("reactions").show(ctx, |ui| {
+        egui::SidePanel::right("reactions").show(ctx, |ui| {
             ui.heading("Reactions");
             egui::ScrollArea::vertical()
                 .id_salt("reactions")
@@ -551,7 +551,7 @@ impl ChemToyApp {
         });
 
 
-        egui::SidePanel::right("compounds").show(ctx, |ui| {
+        egui::SidePanel::left("compounds").show(ctx, |ui| {
             ui.heading("Compounds");
             egui::ScrollArea::vertical()
                 .id_salt("compounds")
