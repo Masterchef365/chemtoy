@@ -267,7 +267,7 @@ impl Sim {
 
             let delta_g = products.total_std_free_energy - chem.laws.compounds[particle.compound].std_free_energy;
 
-            let velocity_scaling = (delta_g / threshold_energy).sqrt();
+            let velocity_scaling = (delta_g.abs() / threshold_energy).sqrt();
 
             //products.total_std_free_energy
 

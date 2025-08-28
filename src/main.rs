@@ -138,13 +138,15 @@ impl ChemToyApp {
             mass: 15.999,
             symbol: "O".into(),
         });
+        /*
         let e = elements.push(Element {
             mass: 1e-3,
             symbol: "e".into(),
         });
+        */
 
         let compounds = Compounds::new(vec![
-            Compound::new("e-", -1, 0.0, &[(e, 1)], &elements),
+            //Compound::new("e-", -1, 0.0, &[(e, 1)], &elements),
             Compound::new("H", 0, 203.278, &[(hydrogen, 1)], &elements),
             Compound::new("H-", -1, 132.282, &[(hydrogen, 1)], &elements),
             Compound::new("H+", 1, 1516.99, &[(hydrogen, 1)], &elements),
@@ -516,7 +518,40 @@ impl ChemToyApp {
     }
 
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("stuff").show(ctx, |ui| {
+        egui::SidePanel::left("reactions").show(ctx, |ui| {
+            ui.heading("Reactions");
+            egui::ScrollArea::vertical()
+                .id_salt("reactions")
+                .show(ui, |ui| {
+                    egui::Grid::new("reactions").striped(true).show(ui, |ui| {
+                        ui.strong("Reactants");
+                        ui.strong("");
+                        ui.strong("Products");
+                        ui.strong("Free energy");
+                        ui.end_row();
+
+                        for (&(compound_a, compound_b), &product) in &self.chem.deriv.synthesis {
+                            let a = &self.chem.laws.compounds[compound_a];
+                            let b = &self.chem.laws.compounds[compound_b];
+                            let res = &self.chem.laws.compounds[product];
+                            let free_energy = a.std_free_energy + b.std_free_energy - res.std_free_energy;
+
+                            ui.horizontal(|ui| {
+                                ui.label(&a.name);
+                                ui.label("+");
+                                ui.label(&b.name);
+                            });
+                            ui.label("->");
+                            ui.label(&res.name);
+                            ui.label(format!("{}", free_energy));
+                            ui.end_row();
+                        }
+                    });
+                });
+        });
+
+
+        egui::SidePanel::right("compounds").show(ctx, |ui| {
             ui.heading("Compounds");
             egui::ScrollArea::vertical()
                 .id_salt("compounds")
