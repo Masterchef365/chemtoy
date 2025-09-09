@@ -365,7 +365,8 @@ impl ChemToyApp {
                         ui.label("Compound: ");
                         egui::ComboBox::new(
                             "compound",
-                            &self.chem.laws.compounds[self.draw_compound].name,
+                            "",
+                            //&self.chem.laws.compounds[self.draw_compound].name,
                         )
                         .show_index(
                             ui,
@@ -565,7 +566,7 @@ impl ChemToyApp {
                             ui.strong("Formula");
                             ui.strong("Mass");
                             ui.strong("Charge");
-                            ui.strong("Free energy");
+                            ui.strong("Std. gibbs free energy");
                             ui.end_row();
 
                             for (idx, compound) in self.chem.laws.compounds.0.iter().enumerate() {
