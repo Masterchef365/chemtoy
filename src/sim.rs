@@ -76,7 +76,7 @@ impl Sim {
 
                 let ci = &chem.laws.compounds[pi.compound];
                 let cj = &chem.laws.compounds[pj.compound];
-                let coulomb = (-ci.charge * cj.charge) as f32 * cfg.coulomb_k;
+                let coulomb = (-ci.charge * cj.charge) as f32 * cfg.coulomb_k / diff.length_sq();
 
                 // https://en.wikipedia.org/wiki/Morse_potential
                 let re = cfg.particle_radius;//cfg.morse_radius;
