@@ -435,13 +435,15 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.morse_mag).speed(1e-2));
                     });
 
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Morse radius: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.morse_radius).speed(1e-2));
                     });
+                    */
 
                     ui.horizontal(|ui| {
-                        ui.label("Coulomb radius: ");
+                        ui.label("Coulomb magnitude: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.coulomb_k).speed(1e-2));
                     });
 
