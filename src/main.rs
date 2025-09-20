@@ -425,6 +425,30 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.kjmol_per_sim_energy).speed(1e-2));
                     });
 
+                    ui.horizontal(|ui| {
+                        ui.label("Morse alpha: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.morse_alpha).speed(1e-2));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Morse magnitude: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.morse_mag).speed(1e-2));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Morse radius: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.morse_radius).speed(1e-2));
+                    });
+
+                    ui.horizontal(|ui| {
+                        ui.label("Coulomb radius: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.coulomb_k).speed(1e-2));
+                    });
+
+
+
+
+
                     // TODO: Neglects mass...
                     let potential_energy = self
                         .sim

@@ -26,6 +26,11 @@ pub struct SimConfig {
     pub gravity: f32,
     pub speed_limit: f32,
     pub kjmol_per_sim_energy: f32,
+
+    pub coulomb_k: f32,
+    pub morse_alpha: f32,
+    pub morse_radius: f32,
+    pub morse_mag: f32,
 }
 
 impl Sim {
@@ -61,36 +66,59 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        // Generate an immutable map of the scene
-        self.enforce_speed_limit(cfg);
-        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.speed_limit * 2.0);
+        // Particle velocity integration
+        for i in 0..self.particles.len() {
+            for j in i + 1..self.particles.len() {
+                let [pi, pj] = self.particles.get_disjoint_mut([i, j]).unwrap();
+                let diff = pj.pos - pi.pos; // i -> j
+                let n = diff.normalized();
+                let dist = diff.length();
 
-        // Try decomposing some particles
-        if self.try_decompose(cfg, chem, &accel) {
-            return None;
-        }
+                let ci = &chem.laws.compounds[pi.compound];
+                let cj = &chem.laws.compounds[pj.compound];
+                let coulomb = (-ci.charge * cj.charge) as f32 * cfg.coulomb_k;
 
-        let mut max_dt = cfg.dt;
+                // https://en.wikipedia.org/wiki/Morse_potential
+                let re = cfg.particle_radius;//cfg.morse_radius;
+                let a = 1.0 / re;//cfg.morse_alpha;
+                let d = cfg.morse_mag;
+                let exp = (-a * (dist - re)).exp();
+                //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
+                let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
 
-        if let Some(intersect) = self.calculate_min_intersection(cfg, chem, &accel) {
-            max_dt = max_dt.min(intersect.time);
-
-            let max_collision_time = cfg.dt / 2.0;
-            if intersect.time < max_collision_time {
-                self.handle_collision(cfg, chem, intersect);
-                return None;
+                let dp = (morse_deriv + coulomb) * n * cfg.dt;
+                pi.vel += dp;// / ci.mass;
+                pj.vel += -dp;// / cj.mass;
             }
         }
 
-        // Cowardly move all particles partway to the precticted intersection time
-        let dt = max_dt * 0.9;
-        timestep_particles(&mut self.particles, dt);
-        for particle in &mut self.particles {
-            particle.vel.y += cfg.gravity * dt; // pixels/frame^2
+        // Boundaries
+        for part in &mut self.particles {
+            for i in 0..2 {
+                if part.pos[i] > cfg.dimensions[i] - cfg.particle_radius {
+                    if part.vel[i] > 0.0 {
+                        part.vel[i] *= -1.0;
+                    }
+                } else if part.pos[i] < cfg.particle_radius {
+                    if part.vel[i] < 0.0 {
+                        part.vel[i] *= -1.0;
+                    }
+                }
+            }
         }
 
-        Some(dt)
+        // Gravity
+        for part in &mut self.particles {
+            part.vel += Vec2::Y * cfg.gravity * cfg.dt;
+        }
+
+        // Time step
+        // TODO: RK4
+        for part in &mut self.particles {
+            part.pos += part.vel * cfg.dt;
+        }
+
+        Some(cfg.dt)
     }
 
     fn enforce_speed_limit(&mut self, cfg: &SimConfig) {
@@ -383,6 +411,10 @@ impl Default for SimConfig {
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
+            coulomb_k: 1e-3,
+            morse_mag: 1.0,
+            morse_alpha: 1.0,
+            morse_radius: 10.0,
         }
     }
 }
