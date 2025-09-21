@@ -68,6 +68,11 @@ impl Sim {
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
         integrate_velocity(&mut self.particles, cfg, chem, cfg.dt);
 
+        // Gravity
+        for part in self.particles.iter_mut() {
+            part.vel += Vec2::Y * cfg.gravity * cfg.dt;
+        }
+
         Some(cfg.dt)
     }
 
@@ -256,9 +261,12 @@ impl Sim {
             let particle = self.particles[i];
             let products = &all_products.0[product_idx];
 
-            let delta_g = products.total_std_free_energy - chem.laws.compounds[particle.compound].std_free_energy;
+            let delta_g = products.total_std_free_energy
+                - chem.laws.compounds[particle.compound].std_free_energy;
 
-            let velocity_scaling = ((particle_energy_kjmol - delta_g / particle_energy_kjmol) / particle_energy_kjmol).sqrt();
+            let velocity_scaling = ((particle_energy_kjmol - delta_g / particle_energy_kjmol)
+                / particle_energy_kjmol)
+                .sqrt();
 
             //products.total_std_free_energy
 
@@ -529,8 +537,8 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
             let coulomb = (ci.charge * cj.charge) as f32 * cfg.coulomb_k / diff.length_sq();
 
             // https://en.wikipedia.org/wiki/Morse_potential
-            let re = cfg.particle_radius;//cfg.morse_radius;
-            let a = 1.0 / re;//cfg.morse_alpha;
+            let re = cfg.particle_radius; //cfg.morse_radius;
+            let a = 1.0 / re; //cfg.morse_alpha;
             let d = cfg.morse_mag;
             let exp = (-a * (dist - re)).exp();
             //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
@@ -546,10 +554,40 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 }
 
 fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
-    let accel = acceleration(particles, cfg, chem);
+    let k1 = acceleration(particles, cfg, chem);
+
+    let mut y1 = particles.to_vec();
+    y1.iter_mut()
+        .zip(&k1)
+        .for_each(|(part, acc)| part.vel += *acc * dt / 2.0);
+    y1.iter_mut()
+        .for_each(|part| part.pos += part.vel * dt / 2.0);
+    let k2 = acceleration(&y1, cfg, chem);
+
+    let mut y2 = particles.to_vec();
+    y2.iter_mut()
+        .zip(&k2)
+        .for_each(|(part, acc)| part.vel += *acc * dt / 2.0);
+    y2.iter_mut()
+        .for_each(|part| part.pos += part.vel * dt / 2.0);
+    let k3 = acceleration(&y2, cfg, chem);
+
+    let mut y3 = particles.to_vec();
+    y3.iter_mut()
+        .zip(&k2)
+        .for_each(|(part, acc)| part.vel += *acc * dt);
+    y3.iter_mut().for_each(|part| part.pos += part.vel * dt);
+    let k4 = acceleration(&y3, cfg, chem);
+
+    for (((part, y1), y2), y3) in particles.iter_mut().zip(&y1).zip(&y2).zip(&y3) {
+        part.pos += (dt / 6.0) * (part.vel + 2.0 * y1.vel + 2.0 * y2.vel + y3.vel);
+    }
+
+    for ((((part, k1), k2), k3), k4) in particles.iter_mut().zip(&k1).zip(&k2).zip(&k3).zip(&k4) {
+        part.vel += (dt / 6.0) * (*k1 + *k2 * 2.0 + *k3 * 2.0 + *k4);
+    }
+
     boundaries(particles, cfg, chem, dt);
-    particles.iter_mut().zip(accel).for_each(|(part, acc)| part.vel += acc * dt);
-    particles.iter_mut().for_each(|part| part.pos += part.vel * dt);
 }
 
 fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
@@ -567,10 +605,4 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
             }
         }
     }
-
-    // Gravity
-    for part in particles.iter_mut() {
-        part.vel += Vec2::Y * cfg.gravity * cfg.dt;
-    }
-
 }
