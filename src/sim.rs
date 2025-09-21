@@ -362,7 +362,7 @@ impl Default for SimConfig {
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
             coulomb_k: 1e-3,
-            morse_mag: 1.0,
+            morse_mag: 1e5,
             morse_alpha: 1.0,
             morse_radius: 10.0,
         }
@@ -537,7 +537,7 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
             let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
 
             let dp = (morse_deriv - coulomb) * n;
-            *acc -= dp;
+            *acc -= dp / ci.mass;
             //pi.vel += -dp;// / ci.mass;
             //pj.vel += dp;// / cj.mass;
         }
