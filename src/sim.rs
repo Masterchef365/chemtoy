@@ -66,58 +66,8 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        // Particle velocity integration
-        for i in 0..self.particles.len() {
-            for j in i + 1..self.particles.len() {
-                let [pi, pj] = self.particles.get_disjoint_mut([i, j]).unwrap();
-                let diff = pj.pos - pi.pos; // i -> j
-                let n = diff.normalized();
-                let dist = diff.length();
-
-                let ci = &chem.laws.compounds[pi.compound];
-                let cj = &chem.laws.compounds[pj.compound];
-                let coulomb = (ci.charge * cj.charge) as f32 * cfg.coulomb_k / diff.length_sq();
-
-                // https://en.wikipedia.org/wiki/Morse_potential
-                let re = cfg.particle_radius;//cfg.morse_radius;
-                let a = 1.0 / re;//cfg.morse_alpha;
-                let d = cfg.morse_mag;
-                let exp = (-a * (dist - re)).exp();
-                //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
-                let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
-
-                let dp = (morse_deriv - coulomb) * n * cfg.dt;
-                pi.vel += -dp;// / ci.mass;
-                pj.vel += dp;// / cj.mass;
-            }
-        }
-
-        // Boundaries
-        for part in &mut self.particles {
-            for i in 0..2 {
-                if part.pos[i] > cfg.dimensions[i] - cfg.particle_radius {
-                    if part.vel[i] > 0.0 {
-                        part.vel[i] *= -1.0;
-                    }
-                } else if part.pos[i] < cfg.particle_radius {
-                    if part.vel[i] < 0.0 {
-                        part.vel[i] *= -1.0;
-                    }
-                }
-            }
-        }
-
-        // Gravity
-        for part in &mut self.particles {
-            part.vel += Vec2::Y * cfg.gravity * cfg.dt;
-        }
-
-        // Time step
-        // TODO: RK4
-        for part in &mut self.particles {
-            part.pos += part.vel * cfg.dt;
-        }
-
+        let mut k1 = self.particles.clone();
+        integrate_velocity(&mut k1, cfg, chem, cfg.dt);
         Some(cfg.dt)
     }
 
@@ -562,4 +512,58 @@ struct Intersection {
 enum IntersectionData {
     Wall { mirrored_velocity: Vec2 },
     Particle { neighbor: usize },
+}
+
+fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
+    // Particle velocity integration
+    for i in 0..particles.len() {
+        for j in i + 1..particles.len() {
+            let [pi, pj] = particles.get_disjoint_mut([i, j]).unwrap();
+            let diff = pj.pos - pi.pos; // i -> j
+            let n = diff.normalized();
+            let dist = diff.length();
+
+            let ci = &chem.laws.compounds[pi.compound];
+            let cj = &chem.laws.compounds[pj.compound];
+            let coulomb = (ci.charge * cj.charge) as f32 * cfg.coulomb_k / diff.length_sq();
+
+            // https://en.wikipedia.org/wiki/Morse_potential
+            let re = cfg.particle_radius;//cfg.morse_radius;
+            let a = 1.0 / re;//cfg.morse_alpha;
+            let d = cfg.morse_mag;
+            let exp = (-a * (dist - re)).exp();
+            //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
+            let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
+
+            let dp = (morse_deriv - coulomb) * n * dt;
+            pi.vel += -dp;// / ci.mass;
+            pj.vel += dp;// / cj.mass;
+        }
+    }
+
+    // Boundaries
+    for part in particles.iter_mut() {
+        for i in 0..2 {
+            if part.pos[i] > cfg.dimensions[i] - cfg.particle_radius {
+                if part.vel[i] > 0.0 {
+                    part.vel[i] *= -1.0;
+                }
+            } else if part.pos[i] < cfg.particle_radius {
+                if part.vel[i] < 0.0 {
+                    part.vel[i] *= -1.0;
+                }
+            }
+        }
+    }
+
+    // Gravity
+    for part in particles.iter_mut() {
+        part.vel += Vec2::Y * cfg.gravity * dt;
+    }
+
+    // Time step
+    // TODO: RK4
+    for part in particles.iter_mut() {
+        part.pos += part.vel * dt;
+    }
 }
