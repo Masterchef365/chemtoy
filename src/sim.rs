@@ -66,8 +66,8 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        let mut k1 = self.particles.clone();
-        integrate_velocity(&mut k1, cfg, chem, cfg.dt);
+        integrate_velocity(&mut self.particles, cfg, chem, cfg.dt);
+
         Some(cfg.dt)
     }
 
@@ -514,11 +514,12 @@ enum IntersectionData {
     Particle { neighbor: usize },
 }
 
-fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
+fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Vec<Vec2> {
     // Particle velocity integration
-    for i in 0..particles.len() {
-        for j in i + 1..particles.len() {
-            let [pi, pj] = particles.get_disjoint_mut([i, j]).unwrap();
+    let mut accel = vec![Vec2::ZERO; particles.len()];
+    for (i, acc) in accel.iter_mut().enumerate() {
+        for j in (0..particles.len()).filter(|&j| j != i) {
+            let [pi, pj] = [particles[i], particles[j]];
             let diff = pj.pos - pi.pos; // i -> j
             let n = diff.normalized();
             let dist = diff.length();
@@ -535,12 +536,23 @@ fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &Chemic
             //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
             let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
 
-            let dp = (morse_deriv - coulomb) * n * dt;
-            pi.vel += -dp;// / ci.mass;
-            pj.vel += dp;// / cj.mass;
+            let dp = (morse_deriv - coulomb) * n;
+            *acc -= dp;
+            //pi.vel += -dp;// / ci.mass;
+            //pj.vel += dp;// / cj.mass;
         }
     }
+    accel
+}
 
+fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
+    let accel = acceleration(particles, cfg, chem);
+    boundaries(particles, cfg, chem, dt);
+    particles.iter_mut().zip(accel).for_each(|(part, acc)| part.vel += acc * dt);
+    particles.iter_mut().for_each(|part| part.pos += part.vel * dt);
+}
+
+fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
     // Boundaries
     for part in particles.iter_mut() {
         for i in 0..2 {
@@ -558,12 +570,7 @@ fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &Chemic
 
     // Gravity
     for part in particles.iter_mut() {
-        part.vel += Vec2::Y * cfg.gravity * dt;
+        part.vel += Vec2::Y * cfg.gravity * cfg.dt;
     }
 
-    // Time step
-    // TODO: RK4
-    for part in particles.iter_mut() {
-        part.pos += part.vel * dt;
-    }
 }
