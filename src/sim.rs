@@ -66,14 +66,29 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        integrate_velocity(&mut self.particles, cfg, chem, cfg.dt);
+        let max_dist = cfg.particle_radius;
+
+        let mut max_rel_vel: f32 = 0.0;
+        for i in 0..self.particles.len() {
+            for j in i + 1..self.particles.len() {
+                let rvel = (self.particles[i].vel - self.particles[j].vel).length_sq();
+                max_rel_vel = max_rel_vel.max(rvel);
+            }
+        }
+        max_rel_vel = max_rel_vel.sqrt();
+
+        let max_dt = max_dist / max_rel_vel; 
+
+        let dt = cfg.dt.min(max_dt);
+
+        integrate_velocity(&mut self.particles, cfg, chem, dt);
 
         // Gravity
         for part in self.particles.iter_mut() {
-            part.vel += Vec2::Y * cfg.gravity * cfg.dt;
+            part.vel += Vec2::Y * cfg.gravity * dt;
         }
 
-        Some(cfg.dt)
+        Some(dt)
     }
 
     fn enforce_speed_limit(&mut self, cfg: &SimConfig) {
@@ -554,6 +569,7 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 }
 
 fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
+    /*
     let k1 = acceleration(particles, cfg, chem);
 
     let mut y1 = particles.to_vec();
@@ -585,6 +601,12 @@ fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &Chemic
 
     for ((((part, k1), k2), k3), k4) in particles.iter_mut().zip(&k1).zip(&k2).zip(&k3).zip(&k4) {
         part.vel += (dt / 6.0) * (*k1 + *k2 * 2.0 + *k3 * 2.0 + *k4);
+    }
+    */
+    let accel = acceleration(particles, cfg, chem);
+    for (part, acc) in particles.iter_mut().zip(&accel) {
+        part.vel += *acc * dt;
+        part.pos += part.vel * dt;
     }
 
     boundaries(particles, cfg, chem, dt);
