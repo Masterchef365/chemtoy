@@ -66,7 +66,16 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        let max_dist = cfg.particle_radius;
+        let points: Vec<Pos2> = self.particles.iter().map(|v| v.pos).collect();
+        let accel = QueryAccelerator::new(points.as_slice(), cfg.particle_radius * 2.0);
+
+        self.try_collide(cfg, chem, &accel);
+
+        if self.try_decompose(cfg, chem, &accel) {
+            return None;
+        }
+
+        let max_dist = cfg.particle_radius / 2.0;
 
         let mut max_rel_vel: f32 = 0.0;
         for i in 0..self.particles.len() {
@@ -244,6 +253,21 @@ impl Sim {
             p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
 
             false
+        }
+    }
+
+    fn try_collide(
+        &mut self,
+        cfg: &SimConfig,
+        chem: &ChemicalWorld,
+        accel: &QueryAccelerator,
+    ) {
+        for i in 0..self.particles.len() {
+            for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
+                if self.particles[i].pos.distance(self.particles[neighbor].pos) < cfg.particle_radius * 2.0 {
+                    self.handle_collision_particle(cfg, chem, i, neighbor);
+                }
+            }
         }
     }
 
