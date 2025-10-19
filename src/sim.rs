@@ -2,6 +2,7 @@ use crate::laws::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 pub struct Sim {
@@ -67,6 +68,9 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
+        // Shuffle to get rid of any cycles ...
+        self.particles.shuffle(&mut rand::thread_rng());
+
         let points: Vec<Pos2> = self.particles.iter().map(|v| v.pos).collect();
         let accel = QueryAccelerator::new(points.as_slice(), cfg.particle_radius * 2.0);
 
@@ -246,24 +250,27 @@ impl Sim {
             let ke = new_vel.length_sq() * total_mass / 2.0;
             let ke = ke * cfg.kjmol_per_sim_energy;
 
+            /*
             let scale_factor = if ke > 0.0 {
                 ((ke + delta_g) / ke).sqrt()
             } else {
                 1.0
             };
+            */
 
-            self.particles[i].compound = *product_id;
-            self.particles[i].vel = new_vel * scale_factor;
+            let p = (ke - delta_g).min(0.0).exp() as f64;
 
-            self.particles.remove(neighbor);
+            if rand::thread_rng().gen_bool(p) {
+                self.particles[i].compound = *product_id;
+                //self.particles[i].vel = new_vel * scale_factor;
 
-            true
-        } else {
-            //p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
-            //p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
+                self.particles.remove(neighbor);
 
-            false
-        }
+                return true;
+            }
+        } 
+
+        false
     }
 
     fn try_collide(
@@ -298,7 +305,7 @@ impl Sim {
 
         'particles: for i in 0..self.particles.len() {
             let Some(particle_energy) = self.particles[i].to_decompose else {
-                continue;
+                continue 'particles;
             };
 
             //let compound_id = self.particles[i].compound;
@@ -319,11 +326,21 @@ impl Sim {
             let delta_g = products.total_std_free_energy
                 - chem.laws.compounds[particle.compound].std_free_energy;
 
+            /*
             let velocity_scaling = if particle_energy_kjmol > 0.0 {
                 ((particle_energy_kjmol - delta_g).max(0.0) / particle_energy_kjmol).sqrt()
             } else {
                 1.0
             };
+            */
+
+            let ke = particle_energy;
+            let p = (ke - delta_g).min(0.0).exp() as f64;
+
+            if !rand::thread_rng().gen_bool(p) {
+                continue 'particles;
+            }
+
 
             //products.total_std_free_energy
 
@@ -333,7 +350,8 @@ impl Sim {
                 .map(|(&compound, &n)| {
                     (0..n).map(move |_| Particle {
                         compound,
-                        vel: particle.vel * velocity_scaling,
+                        vel: particle.vel,
+                        //vel: particle.vel * velocity_scaling,
                         ..particle
                     })
                 })
