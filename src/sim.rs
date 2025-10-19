@@ -90,7 +90,7 @@ impl Sim {
         }
         max_rel_vel = max_rel_vel.sqrt();
 
-        let max_dt = max_dist / max_rel_vel; 
+        let max_dt = max_dist / max_rel_vel;
 
         let dt = cfg.dt.min(max_dt);
         */
@@ -246,7 +246,11 @@ impl Sim {
             let ke = new_vel.length_sq() * total_mass / 2.0;
             let ke = ke * cfg.kjmol_per_sim_energy;
 
-            let scale_factor = if ke > 0.0 { ((ke + delta_g) / ke).sqrt() } else { 1.0 };
+            let scale_factor = if ke > 0.0 {
+                ((ke + delta_g) / ke).sqrt()
+            } else {
+                1.0
+            };
 
             self.particles[i].compound = *product_id;
             self.particles[i].vel = new_vel * scale_factor;
@@ -270,7 +274,9 @@ impl Sim {
     ) -> bool {
         for i in 0..self.particles.len() {
             for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
-                if self.particles[i].pos.distance(self.particles[neighbor].pos) < cfg.particle_radius * 2.0 {
+                if self.particles[i].pos.distance(self.particles[neighbor].pos)
+                    < cfg.particle_radius * 2.0
+                {
                     if self.handle_collision_particle(cfg, chem, i, neighbor) {
                         return true;
                     }
@@ -313,11 +319,11 @@ impl Sim {
             let delta_g = products.total_std_free_energy
                 - chem.laws.compounds[particle.compound].std_free_energy;
 
-            /*
-            let velocity_scaling = (particle_energy_kjmol - delta_g) / particle_energy_kjmol)
-                .sqrt();
-            */
-            let velocity_scaling = 1.0;
+            let velocity_scaling = if particle_energy_kjmol > 0.0 {
+                ((particle_energy_kjmol - delta_g).max(0.0) / particle_energy_kjmol).sqrt()
+            } else {
+                1.0
+            };
 
             //products.total_std_free_energy
 
@@ -417,12 +423,12 @@ impl Default for SimConfig {
             dt: 1. / 60.,
             particle_radius: 5.0,
             //max_collision_time: 1e-2,
-            fill_timestep: false,
+            fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
-            coulomb_k: 0e-3,
-            morse_mag: 0e1,
+            coulomb_k: 1e5,
+            morse_mag: 1e5,
             morse_alpha: 1.0,
             morse_radius: 10.0,
         }
@@ -582,7 +588,6 @@ fn morse_potential_deriv(cfg: &SimConfig, dist: f32) -> f32 {
     let exp = (-a * (dist - re)).exp();
     //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
     2.0 * d * a * (1.0 - exp) * exp
-
 }
 
 fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Vec<Vec2> {
@@ -597,7 +602,8 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 
             let ci = &chem.laws.compounds[pi.compound];
             let cj = &chem.laws.compounds[pj.compound];
-            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k) / (diff.length_sq() + cfg.coulomb_softening);
+            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k)
+                / (diff.length_sq() + cfg.coulomb_softening);
 
             let morse = morse_potential_deriv(cfg, dist);
 
