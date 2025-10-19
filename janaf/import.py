@@ -35,10 +35,9 @@ for name, index, formula, nice_name, phase in filtered.iter_rows():
         "composition": composition,
     })
 
-elements = list(ELEMENTS.split('|'))
-
+elements = [{"symbol": sym, "mass": mass} for sym, mass in ELEMENT_MASSES.items()]
 output = {
-    "elements": elements,
+        "elements": elements,
     "compounds": results,
 }
 

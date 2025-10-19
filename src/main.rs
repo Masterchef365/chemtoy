@@ -5,9 +5,14 @@ use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, La
 use rand::prelude::Distribution;
 use sim::*;
 
+use crate::import::ImportFile;
+
 mod laws;
 mod query_accel;
 mod sim;
+mod import;
+
+const COMPOUNDS_JSON: &str = include_str!("compounds.json");
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -124,6 +129,7 @@ impl ChemToyApp {
             .unwrap_or_default();
         */
 
+        /*
         let mut elements = Elements::default();
 
         let hydrogen = elements.push(Element {
@@ -289,6 +295,10 @@ impl ChemToyApp {
             elements,
             compounds,
         });
+        */
+
+        let import: ImportFile = serde_json::de::from_str(COMPOUNDS_JSON).unwrap();
+        let mut chem = ChemicalWorld::from_laws(import.convert());
 
         for comp in &mut chem.laws.compounds.0 {
             if comp.name != "e-" {
