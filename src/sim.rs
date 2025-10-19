@@ -244,7 +244,7 @@ impl Sim {
             let ke = new_vel.length_sq() * total_mass / 2.0;
             let ke = ke * cfg.kjmol_per_sim_energy;
 
-            let scale_factor = ((ke + delta_g) / ke).sqrt();
+            let scale_factor = if ke > 0.0 { ((ke + delta_g) / ke).sqrt() } else { 1.0 };
 
             self.particles[i].compound = *product_id;
             self.particles[i].vel = new_vel * scale_factor;
@@ -307,9 +307,11 @@ impl Sim {
             let delta_g = products.total_std_free_energy
                 - chem.laws.compounds[particle.compound].std_free_energy;
 
-            let velocity_scaling = ((particle_energy_kjmol - delta_g / particle_energy_kjmol)
-                / particle_energy_kjmol)
+            /*
+            let velocity_scaling = (particle_energy_kjmol - delta_g) / particle_energy_kjmol)
                 .sqrt();
+            */
+            let velocity_scaling = 1.0;
 
             //products.total_std_free_energy
 
@@ -409,7 +411,7 @@ impl Default for SimConfig {
             dt: 1. / 60.,
             particle_radius: 5.0,
             //max_collision_time: 1e-2,
-            fill_timestep: true,
+            fill_timestep: false,
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
@@ -589,7 +591,7 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 
             let ci = &chem.laws.compounds[pi.compound];
             let cj = &chem.laws.compounds[pj.compound];
-            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k + cfg.coulomb_softening) / diff.length_sq();
+            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k) / (diff.length_sq() + cfg.coulomb_softening);
 
             let morse = morse_potential_deriv(cfg, dist);
 
@@ -650,13 +652,17 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
     // Boundaries
     for part in particles.iter_mut() {
         for i in 0..2 {
+            let margin = cfg.dimensions[i] / 1000.;
+
             if part.pos[i] > cfg.dimensions[i] - cfg.particle_radius {
                 if part.vel[i] > 0.0 {
-                    part.vel[i] *= -1.0;
+                    part.vel[i] = -part.vel[i].abs();
+                    part.pos[i] = cfg.dimensions[i] - cfg.particle_radius - margin;
                 }
             } else if part.pos[i] < cfg.particle_radius {
                 if part.vel[i] < 0.0 {
-                    part.vel[i] *= -1.0;
+                    part.vel[i] = part.vel[i].abs();
+                    part.pos[i] = cfg.particle_radius + margin;
                 }
             }
         }
