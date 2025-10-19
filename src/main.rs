@@ -447,6 +447,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.coulomb_k).speed(1e-2));
                     });
 
+                    ui.horizontal(|ui| {
+                        ui.label("Coulomb softening: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.coulomb_softening).speed(1e-2));
+                    });
+
+
 
                     /*
                     // TODO: Neglects mass...

@@ -27,6 +27,7 @@ pub struct SimConfig {
     pub speed_limit: f32,
     pub kjmol_per_sim_energy: f32,
 
+    pub coulomb_softening: f32,
     pub coulomb_k: f32,
     pub morse_alpha: f32,
     pub morse_radius: f32,
@@ -75,6 +76,7 @@ impl Sim {
             return None;
         }
 
+        /*
         let max_dist = cfg.particle_radius / 2.0;
 
         let mut max_rel_vel: f32 = 0.0;
@@ -89,6 +91,8 @@ impl Sim {
         let max_dt = max_dist / max_rel_vel; 
 
         let dt = cfg.dt.min(max_dt);
+        */
+        let dt = cfg.dt;
 
         integrate_velocity(&mut self.particles, cfg, chem, dt);
 
@@ -249,8 +253,8 @@ impl Sim {
 
             true
         } else {
-            p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
-            p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
+            //p2.vel += rel_dir * (vel_component * 2.0 * m1 / total_mass);
+            //p1.vel += -rel_dir * (vel_component * 2.0 * m2 / total_mass);
 
             false
         }
@@ -400,6 +404,7 @@ impl Sim {
 impl Default for SimConfig {
     fn default() -> Self {
         Self {
+            coulomb_softening: 0.1,
             dimensions: Vec2::new(500., 500.),
             dt: 1. / 60.,
             particle_radius: 5.0,
@@ -408,8 +413,8 @@ impl Default for SimConfig {
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
-            coulomb_k: 1e-3,
-            morse_mag: 1e5,
+            coulomb_k: 0e-3,
+            morse_mag: 0e1,
             morse_alpha: 1.0,
             morse_radius: 10.0,
         }
@@ -561,6 +566,17 @@ enum IntersectionData {
     Particle { neighbor: usize },
 }
 
+fn morse_potential_deriv(cfg: &SimConfig, dist: f32) -> f32 {
+    // https://en.wikipedia.org/wiki/Morse_potential
+    let re = cfg.particle_radius; //cfg.morse_radius;
+    let a = 1.0 / re; //cfg.morse_alpha;
+    let d = cfg.morse_mag;
+    let exp = (-a * (dist - re)).exp();
+    //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
+    2.0 * d * a * (1.0 - exp) * exp
+
+}
+
 fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Vec<Vec2> {
     // Particle velocity integration
     let mut accel = vec![Vec2::ZERO; particles.len()];
@@ -573,20 +589,14 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 
             let ci = &chem.laws.compounds[pi.compound];
             let cj = &chem.laws.compounds[pj.compound];
-            let coulomb = (ci.charge * cj.charge) as f32 * cfg.coulomb_k / diff.length_sq();
+            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k + cfg.coulomb_softening) / diff.length_sq();
 
-            // https://en.wikipedia.org/wiki/Morse_potential
-            let re = cfg.particle_radius; //cfg.morse_radius;
-            let a = 1.0 / re; //cfg.morse_alpha;
-            let d = cfg.morse_mag;
-            let exp = (-a * (dist - re)).exp();
-            //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
-            let morse_deriv = 2.0 * d * a * (1.0 - exp) * exp;
+            let morse = morse_potential_deriv(cfg, dist);
 
-            let dp = (morse_deriv - coulomb) * n;
+            let force = morse - coulomb;
+
+            let dp = force * n;
             *acc -= dp / ci.mass;
-            //pi.vel += -dp;// / ci.mass;
-            //pj.vel += dp;// / cj.mass;
         }
     }
     accel
