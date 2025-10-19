@@ -70,7 +70,9 @@ impl Sim {
         let points: Vec<Pos2> = self.particles.iter().map(|v| v.pos).collect();
         let accel = QueryAccelerator::new(points.as_slice(), cfg.particle_radius * 2.0);
 
-        self.try_collide(cfg, chem, &accel);
+        if self.try_collide(cfg, chem, &accel) {
+            return None;
+        }
 
         if self.try_decompose(cfg, chem, &accel) {
             return None;
@@ -265,14 +267,18 @@ impl Sim {
         cfg: &SimConfig,
         chem: &ChemicalWorld,
         accel: &QueryAccelerator,
-    ) {
+    ) -> bool {
         for i in 0..self.particles.len() {
             for neighbor in accel.query_neighbors_fast(i, self.particles[i].pos) {
                 if self.particles[i].pos.distance(self.particles[neighbor].pos) < cfg.particle_radius * 2.0 {
-                    self.handle_collision_particle(cfg, chem, i, neighbor);
+                    if self.handle_collision_particle(cfg, chem, i, neighbor) {
+                        return true;
+                    }
                 }
             }
         }
+
+        false
     }
 
     fn try_decompose(
@@ -595,7 +601,7 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 
             let morse = morse_potential_deriv(cfg, dist);
 
-            let force = morse - coulomb;
+            let force = morse + coulomb;
 
             let dp = force * n;
             *acc -= dp / ci.mass;
