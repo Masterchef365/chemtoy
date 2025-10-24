@@ -1,4 +1,4 @@
-use std::hash::Hasher;
+use std::{collections::HashMap, hash::Hasher};
 
 use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
 use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
@@ -502,6 +502,10 @@ impl ChemToyApp {
                         "Show Velocity Vector",
                     );
                 });
+
+                ui.group(|ui| {
+                    particle_stats(ui, &self.sim, &self.chem.laws);
+                });
             });
         });
 
@@ -744,4 +748,25 @@ impl Default for VisualizationConfig {
             show_velocity_vector: false,
         }
     }
+}
+
+fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Laws) {
+    let mut counts: HashMap<CompoundId, usize> = Default::default();
+    for part in &sim.particles {
+        *counts.entry(part.compound).or_default() += 1;
+    }
+
+    let total: usize = counts.iter().map(|(_, n)| *n).sum();
+
+    let mut sorted: Vec<(CompoundId, usize)> = counts.into_iter().collect();
+    sorted.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+
+    egui::Grid::new("stats").show(ui, |ui| {
+        for (id, n) in sorted {
+            ui.label(&laws.compounds[id].name);
+            ui.strong(n.to_string());
+            ui.strong(format!("{:.02}%", 100.0 * n as f32 / total as f32));
+            ui.end_row();
+        }
+    });
 }
