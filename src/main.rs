@@ -94,6 +94,7 @@ pub struct ChemToyApp {
     slowdown: usize,
     frame_count: usize,
     with_jittered_grid: bool,
+    density: f32,
 
     screen: Screen,
     vis_cfg: VisualizationConfig,
@@ -323,6 +324,7 @@ impl ChemToyApp {
             with_jittered_grid: false,
             screen: Screen::Simulation,
             vis_cfg: Default::default(),
+            density: 0.5,
         }
     }
 }
@@ -393,10 +395,11 @@ impl ChemToyApp {
                         if ui.button("Reset").clicked() {
                             self.sim = Sim::new();
                             if self.with_jittered_grid {
-                                jittered_grid(&mut self.sim, &self.sim_cfg, self.draw_compound);
+                                jittered_grid(&mut self.sim, &self.sim_cfg, self.draw_compound, self.density);
                             }
                         }
                         ui.checkbox(&mut self.with_jittered_grid, "with particles");
+                        ui.add_enabled(self.with_jittered_grid, DragValue::new(&mut self.density).prefix("Init density: "));
                     });
 
                     ui.horizontal(|ui| {
@@ -669,8 +672,8 @@ impl ChemToyApp {
     }
 }
 
-fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId) {
-    let margin = cfg.particle_radius * 8.0;
+fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId, density: f32) {
+    let margin = cfg.particle_radius * 2.0 / density;
     let spacing = margin * 2.0;
     let total_width = cfg.particle_radius + spacing;
     let nx = (cfg.dimensions.x / total_width) as i32;
