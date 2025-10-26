@@ -68,12 +68,11 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f32> {
-        // Shuffle to get rid of any cycles ...
-        self.particles.shuffle(&mut rand::thread_rng());
 
         let points: Vec<Pos2> = self.particles.iter().map(|v| v.pos).collect();
         let accel = QueryAccelerator::new(points.as_slice(), cfg.particle_radius * 2.0);
 
+        /*
         if self.try_collide(cfg, chem, &accel) {
             return None;
         }
@@ -81,6 +80,7 @@ impl Sim {
         if self.try_decompose(cfg, chem, &accel) {
             return None;
         }
+        */
 
         /*
         let max_dist = cfg.particle_radius / 2.0;
@@ -98,7 +98,48 @@ impl Sim {
 
         let dt = cfg.dt.min(max_dt);
         */
-        let dt = cfg.dt;
+        let mut dt = cfg.dt;
+
+        for i in 0..self.particles.len() {
+            for neighbor in accel.query_neighbors_fast(i, points[i]) {
+                let us = &self.particles[i];
+                let neigh = &self.particles[neighbor];
+
+                let rvel = us.vel - neigh.vel;
+                let rpos = us.pos - neigh.pos;
+
+                let adj_rpos = rpos.length() - cfg.particle_radius * 2.;
+                let rvel = rvel.length();
+
+                if us.vel.dot(neigh.vel) < 0.0 {
+                    let min_intersect_time = adj_rpos / rvel;
+
+                    if min_intersect_time > 0.0 {
+                        dt = dt.min(min_intersect_time / 2.0);
+                    }
+
+                    /*
+                    if min_intersect_time < cfg.dt / 100. {
+                        /*
+                        //if !self.handle_collision_particle(cfg, chem, i, neighbor) {
+                            let m1 = chem.laws.compounds[self.particles[i].compound].mass;
+                            let m2 = chem.laws.compounds[self.particles[neighbor].compound].mass;
+                            let v1 = self.particles[i].vel;
+                            let v2 = self.particles[neighbor].vel;
+
+                            let (v1, v2) = elastic_collision_vect(m1, v1, m2, v2);
+                            self.particles[i].vel = v1;
+                            self.particles[neighbor].vel = v2;
+                        //}
+                        */
+                    } else {
+                    }
+                    */
+                }
+            }
+        }
+
+        dt = dt.max(cfg.dt * 1e-3);
 
         integrate_velocity(&mut self.particles, cfg, chem, dt);
 
@@ -464,6 +505,18 @@ fn elastic_collision(m1: f32, v1: f32, m2: f32, v2: f32) -> (f32, f32) {
     (v1f, v2f)
 }
 
+fn elastic_collision_vect(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
+    assert!(m1 > 0.0);
+    assert!(m2 > 0.0);
+    let denom = m1 + m2;
+    let diff = m1 - m2;
+
+    let v1f = (diff * v1 + 2. * m2 * v2) / denom;
+    let v2f = (2. * m1 * v1 - diff * v2) / denom;
+    (v1f, v2f)
+}
+
+
 fn cross2d(a: Vec2, b: Vec2) -> f32 {
     a.x * b.y - a.y * b.x
 }
@@ -635,7 +688,6 @@ fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -
 }
 
 fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
-    /*
     let k1 = acceleration(particles, cfg, chem);
 
     let mut y1 = particles.to_vec();
@@ -668,10 +720,11 @@ fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &Chemic
     for ((((part, k1), k2), k3), k4) in particles.iter_mut().zip(&k1).zip(&k2).zip(&k3).zip(&k4) {
         part.vel += (dt / 6.0) * (*k1 + *k2 * 2.0 + *k3 * 2.0 + *k4);
     }
-    */
-    let accel = acceleration(particles, cfg, chem);
-    for (part, acc) in particles.iter_mut().zip(&accel) {
-        part.vel += *acc * dt;
+
+    //let accel = acceleration(particles, cfg, chem);
+    //for (part, acc) in particles.iter_mut().zip(&accel) {
+        //part.vel += *acc * dt;
+    for part in particles.iter_mut() {
         part.pos += part.vel * dt;
     }
 
