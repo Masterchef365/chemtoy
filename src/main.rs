@@ -298,14 +298,18 @@ impl ChemToyApp {
         });
         */
 
+        println!("Loading database...");
         let import: ImportFile = serde_json::de::from_str(COMPOUNDS_JSON).unwrap();
-        let mut chem = ChemicalWorld::from_laws(import.convert());
+        println!("Deriving laws...");
+        let chem = ChemicalWorld::from_laws(import.convert());
 
+        /*
         for comp in &mut chem.laws.compounds.0 {
             if comp.name != "e-" {
                 comp.name = comp.display(&chem.laws.elements);
             }
         }
+        */
 
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
 
@@ -568,16 +572,16 @@ impl ChemToyApp {
     }
 
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("reactions").show(ctx, |ui| {
+        egui::SidePanel::right("reactions").resizable(true).show(ctx, |ui| {
             ui.heading("Reactions");
-            egui::ScrollArea::vertical()
+            egui::ScrollArea::both()
                 .id_salt("reactions")
                 .show(ui, |ui| {
                     egui::Grid::new("reactions").striped(true).show(ui, |ui| {
                         ui.strong("Reactants");
                         ui.strong("");
                         ui.strong("Products");
-                        ui.strong("Free energy");
+                        ui.strong("Delta G");
                         ui.end_row();
 
                         for (&(compound_a, compound_b), &product) in &self.chem.deriv.synthesis {
@@ -601,9 +605,9 @@ impl ChemToyApp {
         });
 
 
-        egui::SidePanel::left("compounds").show(ctx, |ui| {
+        egui::SidePanel::left("compounds").resizable(true).show(ctx, |ui| {
             ui.heading("Compounds");
-            egui::ScrollArea::vertical()
+            egui::ScrollArea::both()
                 .id_salt("compounds")
                 .show(ui, |ui| {
                     egui::Grid::new("compounds")
@@ -611,8 +615,8 @@ impl ChemToyApp {
                         .striped(true)
                         .show(ui, |ui| {
                             ui.strong("Index");
+                            ui.strong("Name");
                             ui.strong("Symbol");
-                            ui.strong("Formula");
                             ui.strong("Mass");
                             ui.strong("Charge");
                             ui.strong("Std. gibbs free energy");

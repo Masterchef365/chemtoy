@@ -109,7 +109,9 @@ impl ChemicalWorld {
 
 impl Derivations {
     pub fn from_laws(laws: &Laws) -> Self {
+        println!("Computing decompositions...");
         let decompositions = compute_decompositions(laws);
+        println!("Computing syntheses...");
         let synthesis = compute_synthesis(&decompositions);
         Self {
             decompositions,
@@ -222,9 +224,11 @@ fn print_subscript_number(s: &mut String, mut number: i32) {
 }
 
 fn compute_decompositions(laws: &Laws) -> HashMap<CompoundId, ProductSet> {
+    dbg!(laws.compounds.0.len());
     laws.compounds
         .enumerate()
         .map(|(compound_id, _)| {
+            dbg!(compound_id);
             (
                 compound_id,
                 compute_decompositions_for_compound(laws, compound_id),
