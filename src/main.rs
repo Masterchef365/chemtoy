@@ -1,18 +1,12 @@
 use std::{collections::HashMap, hash::Hasher};
 
 use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
-use laws::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
+use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use rand::prelude::Distribution;
 use sim::*;
 
-use crate::import::ImportFile;
-
-mod laws;
 mod query_accel;
 mod sim;
-mod import;
-
-const COMPOUNDS_JSON: &str = include_str!("compounds.json");
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
@@ -298,11 +292,6 @@ impl ChemToyApp {
         });
         */
 
-        println!("Loading database...");
-        let import: ImportFile = serde_json::de::from_str(COMPOUNDS_JSON).unwrap();
-        println!("Deriving laws...");
-        let chem = ChemicalWorld::from_laws(import.convert());
-
         /*
         for comp in &mut chem.laws.compounds.0 {
             if comp.name != "e-" {
@@ -310,6 +299,8 @@ impl ChemToyApp {
             }
         }
         */
+
+        let chem = chemtoy_deduct::load_builtin();
 
         let draw_compound = chem.laws.compounds.enumerate().next().unwrap().0;
 

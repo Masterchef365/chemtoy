@@ -1,4 +1,4 @@
-use crate::laws::{ChemicalWorld, CompoundId};
+use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
