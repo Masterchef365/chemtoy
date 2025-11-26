@@ -32,7 +32,10 @@ pub struct Compound {
 
 /// Product set. Sorted by total_std_free_energy.
 #[derive(Default, Clone, Debug)]
-pub struct ProductSet(pub Vec<Products>);
+pub struct ProductSet {
+    pub products: Vec<Products>,
+    pub n: usize,
+}
 
 #[derive(Default, Clone, Debug)]
 pub struct Products {
@@ -225,7 +228,7 @@ impl ProductSet {
     pub fn nearest_energy(&self, energy: f32) -> Option<usize> {
         let mut output = None;
         // TODO: Binary search (maybe not even worth it?)
-        for (idx, set) in self.0.iter().enumerate() {
+        for (idx, set) in self.products.iter().enumerate() {
             if energy > set.total_std_free_energy {
                 output = Some(idx);
             }
@@ -234,7 +237,7 @@ impl ProductSet {
     }
 
     pub fn sort(&mut self) {
-        self.0.sort_by(|a, b| {
+        self.products.sort_by(|a, b| {
             a.total_std_free_energy
                 .partial_cmp(&b.total_std_free_energy)
                 .unwrap()

@@ -362,7 +362,7 @@ impl Sim {
             let product_idx = rand::thread_rng().gen_range(0..=last_product_idx);
 
             let particle = self.particles[i];
-            let products = &all_products.0[product_idx];
+            let products = &all_products.products[product_idx];
 
             let delta_g = products.total_std_free_energy
                 - chem.laws.compounds[particle.compound].std_free_energy;

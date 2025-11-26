@@ -9,10 +9,10 @@ impl Derivations {
         println!("Computing syntheses...");
         let synthesis = compute_synthesis(&decompositions);
 
-        let synthesized: HashSet<CompoundId> = synthesis.iter().map(|(_k, v)| v).collect();
-        for compound in &laws.compounds {
-            if !synthesized.contains(&compound) {
-                eprintln!("NOT FOUND: {}", laws.co)
+        let synthesized: HashSet<CompoundId> = synthesis.iter().map(|(_k, v)| *v).collect();
+        for (id, compound) in laws.compounds.enumerate() {
+            if !synthesized.contains(&id) {
+                eprintln!("NOT FOUND: {}", compound.name);
             }
         }
 
@@ -48,7 +48,7 @@ fn compute_decompositions(laws: &Laws) -> HashMap<CompoundId, ProductSet> {
 fn compute_decompositions_for_compound(laws: &Laws, compound_id: CompoundId) -> ProductSet {
     let compound = &laws.compounds[compound_id];
 
-    // All compounds which only contain elements from our compound, and fewer or equal
+    // All other compounds which only contain elements from our compound, and fewer or equal
     // amounts of each (can't have negative amounts in a formula! ... or can you??)
     let relevant_compounds: Vec<(CompoundId, Compound)> = laws
         .compounds
@@ -88,7 +88,7 @@ fn find_decompositions_rec(
 ) {
     if !check_stack_continue(laws, compound.formula.clone(), stack) {
         if check_stack(laws, compound.formula.clone(), compound.charge, stack) {
-            output.0.push(Products::from_compound_ids(&stack, laws));
+            output.products.push(Products::from_compound_ids(&stack, laws));
         }
         return;
     }
@@ -158,7 +158,7 @@ fn compute_synthesis(
 ) -> HashMap<(CompoundId, CompoundId), CompoundId> {
     let mut output: HashMap<(CompoundId, CompoundId), CompoundId> = HashMap::new();
     for (product_id, reactions) in decompositions {
-        for reaction in &reactions.0 {
+        for reaction in &reactions.products {
             if reaction.count() != 2 {
                 continue;
             }

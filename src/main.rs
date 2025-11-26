@@ -641,7 +641,7 @@ impl ChemToyApp {
                                 ui.strong("Products");
                                 ui.end_row();
 
-                                for products in decompositions.0.iter() {
+                                for products in decompositions.products.iter() {
                                     ui.label(format!("{}", products.total_std_free_energy));
                                     ui.horizontal(|ui| {
                                         ui.label("->");
