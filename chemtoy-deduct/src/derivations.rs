@@ -30,7 +30,7 @@ pub struct Derivations {
     /// Reverse of decompositions, but for combinations of only two compounds.
     /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
     /// so that there are no redundant indices.
-    pub synthesis: HashMap<(CompoundId, CompoundId), CompoundId>,
+    pub synthesis: Synthesis,
 }
 
 fn compute_decompositions(laws: &Laws) -> HashMap<CompoundId, ProductSet> {
@@ -153,9 +153,15 @@ fn check_stack_continue(laws: &Laws, mut formula: Formula, stack: &[CompoundId])
     formula.0.values().any(|n| *n > 0) && has_reasonable_charge
 }
 
+/// Reverse of decompositions, but for combinations of only two compounds.
+/// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
+/// so that there are no redundant indices.
+#[derive(Clone, Debug)]
+pub struct Synthesis(HashMap<(CompoundId, CompoundId), CompoundId>);
+
 fn compute_synthesis(
     decompositions: &HashMap<CompoundId, ProductSet>,
-) -> HashMap<(CompoundId, CompoundId), CompoundId> {
+) -> Synthesis {
     let mut output: HashMap<(CompoundId, CompoundId), CompoundId> = HashMap::new();
     for (product_id, reactions) in decompositions {
         for reaction in &reactions.products {
@@ -178,5 +184,24 @@ fn compute_synthesis(
         }
     }
 
-    output
+    Synthesis(output)
+}
+
+impl Synthesis {
+    pub fn lookup(&self, mut a: CompoundId, mut b: CompoundId) -> Option<CompoundId> {
+        if a.0 > b.0 {
+            std::mem::swap(&mut a.0, &mut b.0);
+        }
+
+        self.0.get(&(a, b)).copied()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&(CompoundId, CompoundId), &CompoundId)> + '_ {
+        self.0.iter()
+    }
+}
+
+pub struct Reaction {
+    pub reactants: (CompoundId, CompoundId),
+    pub products: CompoundId,
 }
