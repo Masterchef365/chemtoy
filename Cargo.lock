@@ -605,6 +605,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "chemtoy"
+version = "0.1.0"
+dependencies = [
+ "chemtoy-deduct",
+ "eframe",
+ "egui",
+ "env_logger",
+ "getrandom 0.2.16",
+ "log",
+ "rand",
+ "serde",
+ "smallvec",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "chemtoy-deduct"
 version = "0.1.0"
 dependencies = [
@@ -836,23 +853,6 @@ dependencies = [
  "web-time",
  "windows-sys 0.61.2",
  "winit",
-]
-
-[[package]]
-name = "eframe_template"
-version = "0.1.0"
-dependencies = [
- "chemtoy-deduct",
- "eframe",
- "egui",
- "env_logger",
- "getrandom 0.2.16",
- "log",
- "rand",
- "serde",
- "smallvec",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

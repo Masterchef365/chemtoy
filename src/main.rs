@@ -563,7 +563,7 @@ impl ChemToyApp {
     }
 
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        todo!()
+        chemtoy::update_chembook(ctx, &self.chem)
     }
 }
 

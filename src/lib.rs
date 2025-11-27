@@ -1,6 +1,6 @@
 use chemtoy_deduct::ChemicalWorld;
 
-pub fn update_chembook(ctx: &egui::Context, chem: ChemicalWorld) {
+pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld) {
     egui::SidePanel::right("reactions").resizable(true).show(ctx, |ui| {
         ui.heading("Reactions");
         egui::ScrollArea::both()
