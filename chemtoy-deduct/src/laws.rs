@@ -34,7 +34,6 @@ pub struct Compound {
 #[derive(Default, Clone, Debug)]
 pub struct ProductSet {
     pub products: Vec<Products>,
-    pub n: usize,
 }
 
 #[derive(Default, Clone, Debug)]
