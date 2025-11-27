@@ -283,10 +283,10 @@ impl Sim {
         //let (v1, v2) = elastic_collision(m1, , m2, 0.0);
 
         // Do the synthesizing
-        if let Some(product_id) = chem.deriv.synthesis.get(&(a, b)) {
+        if let Some(product_id) = chem.deriv.synthesis.lookup(a, b) {
             let new_vel = (p1.vel * m1 + p2.vel * m2) / total_mass;
 
-            let res = &chem.laws.compounds[*product_id];
+            let res = &chem.laws.compounds[product_id];
             let delta_g = c1.std_free_energy + c2.std_free_energy - res.std_free_energy;
             let ke = new_vel.length_sq() * total_mass / 2.0;
             let ke = ke * cfg.kjmol_per_sim_energy;
@@ -302,7 +302,7 @@ impl Sim {
             let p = (ke - delta_g).min(0.0).exp() as f64;
 
             if rand::thread_rng().gen_bool(p) {
-                self.particles[i].compound = *product_id;
+                self.particles[i].compound = product_id;
                 //self.particles[i].vel = new_vel * scale_factor;
 
                 self.particles.remove(neighbor);
