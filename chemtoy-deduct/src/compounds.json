@@ -505,41 +505,10 @@
    }
   },
   {
-   "name": "C+, Carbon, Ion (g)",
-   "formula": "C+",
-   "delta_g": 1758.779,
-   "charge": 1,
-   "mass": 12.011,
-   "composition": {
-    "C": 1
-   }
-  },
-  {
-   "name": "C-, Carbon, Ion (g)",
-   "formula": "C-",
-   "delta_g": 551.115,
-   "charge": -1,
-   "mass": 12.011,
-   "composition": {
-    "C": 1
-   }
-  },
-  {
    "name": "CH, Methylidyne (g)",
    "formula": "CH",
    "delta_g": 560.747,
    "charge": 0,
-   "mass": 13.018839999999999,
-   "composition": {
-    "C": 1,
-    "H": 1
-   }
-  },
-  {
-   "name": "CH+, Methylidyne, Ion (g)",
-   "formula": "CH+",
-   "delta_g": 1596.748,
-   "charge": 1,
    "mass": 13.018839999999999,
    "composition": {
     "C": 1,
@@ -576,18 +545,6 @@
    "formula": "CHO",
    "delta_g": 28.309,
    "charge": 0,
-   "mass": 29.01784,
-   "composition": {
-    "C": 1,
-    "H": 1,
-    "O": 1
-   }
-  },
-  {
-   "name": "CHO+, Formyl, Ion (g)",
-   "formula": "CHO+",
-   "delta_g": 817.906,
-   "charge": 1,
    "mass": 29.01784,
    "composition": {
     "C": 1,
@@ -664,28 +621,6 @@
    }
   },
   {
-   "name": "CN+, Cyanogen, Ion (g)",
-   "formula": "CN+",
-   "delta_g": 1763.145,
-   "charge": 1,
-   "mass": 26.018,
-   "composition": {
-    "C": 1,
-    "N": 1
-   }
-  },
-  {
-   "name": "CN-, Cyanide (g)",
-   "formula": "CN-",
-   "delta_g": 38.768,
-   "charge": -1,
-   "mass": 26.018,
-   "composition": {
-    "C": 1,
-    "N": 1
-   }
-  },
-  {
    "name": "CNO, NCO Radical (g)",
    "formula": "CNO",
    "delta_g": 151.024,
@@ -754,17 +689,6 @@
    }
   },
   {
-   "name": "CO2-, Carbon Dioxide, Ion (g)",
-   "formula": "CO2-",
-   "delta_g": -444.03,
-   "charge": -1,
-   "mass": 44.009,
-   "composition": {
-    "C": 1,
-    "O": 2
-   }
-  },
-  {
    "name": "CP, Carbon Phosphide (g)",
    "formula": "CP",
    "delta_g": 399.375,
@@ -802,16 +726,6 @@
    "formula": "C2",
    "delta_g": 781.714,
    "charge": 0,
-   "mass": 24.022,
-   "composition": {
-    "C": 2
-   }
-  },
-  {
-   "name": "C2-, Carbon, Ion (g)",
-   "formula": "C2-",
-   "delta_g": 394.566,
-   "charge": -1,
    "mass": 24.022,
    "composition": {
     "C": 2
@@ -958,26 +872,6 @@
    }
   },
   {
-   "name": "H+, Hydrogen, Ion (g)",
-   "formula": "H+",
-   "delta_g": 1516.99,
-   "charge": 1,
-   "mass": 1.00784,
-   "composition": {
-    "H": 1
-   }
-  },
-  {
-   "name": "H-, Hydrogen, Ion (g)",
-   "formula": "H-",
-   "delta_g": 132.282,
-   "charge": -1,
-   "mass": 1.00784,
-   "composition": {
-    "H": 1
-   }
-  },
-  {
    "name": "HN, Imidogen (g)",
    "formula": "HN",
    "delta_g": 370.565,
@@ -1048,28 +942,6 @@
    }
   },
   {
-   "name": "HO+, Hydroxyl, Ion (g)",
-   "formula": "HO+",
-   "delta_g": 1306.437,
-   "charge": 1,
-   "mass": 17.00684,
-   "composition": {
-    "H": 1,
-    "O": 1
-   }
-  },
-  {
-   "name": "HO-, Hydroxyl, Ion (g)",
-   "formula": "HO-",
-   "delta_g": -138.698,
-   "charge": -1,
-   "mass": 17.00684,
-   "composition": {
-    "H": 1,
-    "O": 1
-   }
-  },
-  {
    "name": "HO2, Hydroperoxo (g)",
    "formula": "HO2",
    "delta_g": 14.43,
@@ -1107,26 +979,6 @@
    "formula": "H2",
    "delta_g": 0.0,
    "charge": 0,
-   "mass": 2.01568,
-   "composition": {
-    "H": 2
-   }
-  },
-  {
-   "name": "H2+, Hydrogen, Ion (g)",
-   "formula": "H2+",
-   "delta_g": 1484.931,
-   "charge": 1,
-   "mass": 2.01568,
-   "composition": {
-    "H": 2
-   }
-  },
-  {
-   "name": "H2-, Hydrogen, Ion (g)",
-   "formula": "H2-",
-   "delta_g": 237.732,
-   "charge": -1,
    "mass": 2.01568,
    "composition": {
     "H": 2
@@ -1222,17 +1074,6 @@
    }
   },
   {
-   "name": "H3O+, Hydronium, Ion (g)",
-   "formula": "H3O+",
-   "delta_g": 606.607,
-   "charge": 1,
-   "mass": 19.02252,
-   "composition": {
-    "H": 3,
-    "O": 1
-   }
-  },
-  {
    "name": "H3P, Phosphine (g)",
    "formula": "H3P",
    "delta_g": 30.893,
@@ -1265,26 +1106,6 @@
    }
   },
   {
-   "name": "N+, Nitrogen, Ion (g)",
-   "formula": "N+",
-   "delta_g": 1856.796,
-   "charge": 1,
-   "mass": 14.007,
-   "composition": {
-    "N": 1
-   }
-  },
-  {
-   "name": "N-, Nitrogen, Ion (g)",
-   "formula": "N-",
-   "delta_g": 460.677,
-   "charge": -1,
-   "mass": 14.007,
-   "composition": {
-    "N": 1
-   }
-  },
-  {
    "name": "NO, Nitrogen Oxide (g)",
    "formula": "NO",
    "delta_g": 86.6,
@@ -1296,32 +1117,10 @@
    }
   },
   {
-   "name": "NO+, Nitrogen Oxide, Ion (g)",
-   "formula": "NO+",
-   "delta_g": 983.978,
-   "charge": 1,
-   "mass": 30.006,
-   "composition": {
-    "N": 1,
-    "O": 1
-   }
-  },
-  {
    "name": "NO2, Nitrogen Oxide (g)",
    "formula": "NO2",
    "delta_g": 51.258,
    "charge": 0,
-   "mass": 46.005,
-   "composition": {
-    "N": 1,
-    "O": 2
-   }
-  },
-  {
-   "name": "NO2-, Nitrogen Oxide, Ion (g)",
-   "formula": "NO2-",
-   "delta_g": -177.273,
-   "charge": -1,
    "mass": 46.005,
    "composition": {
     "N": 1,
@@ -1372,41 +1171,10 @@
    }
   },
   {
-   "name": "N2+, Nitrogen, Ion (g)",
-   "formula": "N2+",
-   "delta_g": 1501.44,
-   "charge": 1,
-   "mass": 28.014,
-   "composition": {
-    "N": 2
-   }
-  },
-  {
-   "name": "N2-, Nitrogen, Ion (g)",
-   "formula": "N2-",
-   "delta_g": 151.015,
-   "charge": -1,
-   "mass": 28.014,
-   "composition": {
-    "N": 2
-   }
-  },
-  {
    "name": "N2O, Nitrogen Oxide (g)",
    "formula": "N2O",
    "delta_g": 104.179,
    "charge": 0,
-   "mass": 44.013,
-   "composition": {
-    "N": 2,
-    "O": 1
-   }
-  },
-  {
-   "name": "N2O+, Nitrogen Oxide, Ion (g)",
-   "formula": "N2O+",
-   "delta_g": 1345.131,
-   "charge": 1,
    "mass": 44.013,
    "composition": {
     "N": 2,
@@ -1467,26 +1235,6 @@
    }
   },
   {
-   "name": "O+, Oxygen, Ion (g)",
-   "formula": "O+",
-   "delta_g": 1546.912,
-   "charge": 1,
-   "mass": 15.999,
-   "composition": {
-    "O": 1
-   }
-  },
-  {
-   "name": "O-, Oxygen, Ion (g)",
-   "formula": "O-",
-   "delta_g": 91.638,
-   "charge": -1,
-   "mass": 15.999,
-   "composition": {
-    "O": 1
-   }
-  },
-  {
    "name": "OP, Phosphorus Oxide (g)",
    "formula": "OP",
    "delta_g": -47.139,
@@ -1524,26 +1272,6 @@
    "formula": "O2",
    "delta_g": 0.0,
    "charge": 0,
-   "mass": 31.998,
-   "composition": {
-    "O": 2
-   }
-  },
-  {
-   "name": "O2+, Oxygen, Ion (g)",
-   "formula": "O2+",
-   "delta_g": 1164.315,
-   "charge": 1,
-   "mass": 31.998,
-   "composition": {
-    "O": 2
-   }
-  },
-  {
-   "name": "O2-, Oxygen, Ion (g)",
-   "formula": "O2-",
-   "delta_g": -43.663,
-   "charge": -1,
    "mass": 31.998,
    "composition": {
     "O": 2
@@ -1635,26 +1363,6 @@
    }
   },
   {
-   "name": "P+, Phosphorus, Ion (g)",
-   "formula": "P+",
-   "delta_g": 1292.543,
-   "charge": 1,
-   "mass": 30.973761998,
-   "composition": {
-    "P": 1
-   }
-  },
-  {
-   "name": "P-, Phosphorus, Ion (g)",
-   "formula": "P-",
-   "delta_g": 206.795,
-   "charge": -1,
-   "mass": 30.973761998,
-   "composition": {
-    "P": 1
-   }
-  },
-  {
    "name": "PS, Phosphorus Sulfide (g)",
    "formula": "PS",
    "delta_g": 90.569,
@@ -1701,26 +1409,6 @@
    "formula": "S",
    "delta_g": 236.5,
    "charge": 0,
-   "mass": 32.06,
-   "composition": {
-    "S": 1
-   }
-  },
-  {
-   "name": "S+, Sulfur, Ion (g)",
-   "formula": "S+",
-   "delta_g": 1236.811,
-   "charge": 1,
-   "mass": 32.06,
-   "composition": {
-    "S": 1
-   }
-  },
-  {
-   "name": "S-, Sulfur, Ion (g)",
-   "formula": "S-",
-   "delta_g": 36.822,
-   "charge": -1,
    "mass": 32.06,
    "composition": {
     "S": 1
