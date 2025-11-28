@@ -1,5 +1,5 @@
-use chemtoy_deduct::{ChemicalWorld, CompoundId};
-use egui::{SelectableLabel, Ui};
+use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId};
+use egui::Ui;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
@@ -21,6 +21,75 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
         });
 
     ctx.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Page>("pages".into()) = page);
+    egui::SidePanel::right("info")
+        .resizable(true)
+        .show(ctx, |ui| {
+            let cmpd = &chem.laws.compounds[*selected_cmpd];
+            ui.heading(&cmpd.name);
+            ui.strong("Info");
+            egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
+                let Compound {
+                    name,
+                    formula,
+                    charge,
+                    std_free_energy,
+                    mass,
+                } = cmpd;
+                ui.strong("Formula: ");
+                ui.label(formula.display(&chem.laws.elements));
+                ui.end_row();
+
+                ui.strong("Charge: ");
+                ui.label(charge.to_string());
+                ui.end_row();
+
+                ui.strong("Free energy: ");
+                ui.label(std_free_energy.to_string());
+                ui.end_row();
+
+                ui.strong("Mass: ");
+                ui.label(mass.to_string());
+                ui.end_row();
+            });
+            ui.separator();
+
+            ui.strong("Reactions");
+            egui::Grid::new("cmpd_rxns").striped(true).show(ui, |ui| {
+                for ((a, b), res) in chem.deriv.synthesis.0.iter() {
+                    if *a == *selected_cmpd || *b == *selected_cmpd || *res == *selected_cmpd {
+                        ui.horizontal(|ui| {
+                            selectable_cmpd(ui, chem, *a, selected_cmpd);
+                            ui.label("+");
+                            selectable_cmpd(ui, chem, *b, selected_cmpd);
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("->");
+                            selectable_cmpd(ui, chem, *res, selected_cmpd);
+                        });
+                        ui.end_row();
+                    }
+                }
+            });
+            ui.separator();
+
+            ui.strong("Decompositions");
+            egui::Grid::new("cmpd_decomp").striped(true).show(ui, |ui| {
+                for productset in &chem.deriv.decompositions[&selected_cmpd].products {
+                    ui.horizontal(|ui| {
+                        ui.label("->");
+                        for (i, (other_id, n)) in productset.compounds.iter().enumerate().rev() {
+                            ui.label(n.to_string());
+                            selectable_cmpd(ui, chem, *other_id, selected_cmpd);
+                            if i != 0 {
+                                ui.label(" + ");
+                            }
+                        }
+                    });
+                    ui.end_row();
+                }
+            });
+            ui.separator();
+        });
 
     egui::CentralPanel::default().show(ctx, |ui| {
         egui::ScrollArea::both()
@@ -33,7 +102,12 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
     });
 }
 
-fn selectable_cmpd(ui: &mut Ui, chem: &ChemicalWorld, value: CompoundId, selected_cmpd: &mut CompoundId) -> egui::Response {
+fn selectable_cmpd(
+    ui: &mut Ui,
+    chem: &ChemicalWorld,
+    value: CompoundId,
+    selected_cmpd: &mut CompoundId,
+) -> egui::Response {
     ui.selectable_value(selected_cmpd, value, &chem.laws.compounds[value].name)
 }
 
@@ -79,7 +153,7 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
             ui.strong("Symbol");
             ui.end_row();
 
-            for (id@CompoundId(idx), compound) in chem.laws.compounds.enumerate() {
+            for (id @ CompoundId(idx), compound) in chem.laws.compounds.enumerate() {
                 ui.label(format!("{idx}"));
                 //ui.label(&compound.name);
                 selectable_cmpd(ui, chem, id, selected_cmpd);
