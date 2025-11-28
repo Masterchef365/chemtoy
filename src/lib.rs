@@ -1,5 +1,5 @@
-use chemtoy_deduct::ChemicalWorld;
-use egui::Ui;
+use chemtoy_deduct::{ChemicalWorld, CompoundId};
+use egui::{SelectableLabel, Ui};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
@@ -9,7 +9,7 @@ enum Page {
     Decompositions,
 }
 
-pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld) {
+pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     let mut page = ctx.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Page>("pages".into()));
 
     egui::SidePanel::left("pages")
@@ -26,14 +26,18 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld) {
         egui::ScrollArea::both()
             .id_salt("reactions")
             .show(ui, |ui| match page {
-                Page::Compounds => show_compounds(ui, chem),
-                Page::Reactions => show_reactions(ui, chem),
-                Page::Decompositions => show_decompositions(ui, chem),
+                Page::Compounds => show_compounds(ui, chem, selected_cmpd),
+                Page::Reactions => show_reactions(ui, chem, selected_cmpd),
+                Page::Decompositions => show_decompositions(ui, chem, selected_cmpd),
             });
     });
 }
 
-pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld) {
+fn selectable_cmpd(ui: &mut Ui, chem: &ChemicalWorld, value: CompoundId, selected_cmpd: &mut CompoundId) -> egui::Response {
+    ui.selectable_value(selected_cmpd, value, &chem.laws.compounds[value].name)
+}
+
+pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Reactions");
     egui::Grid::new("reactions").striped(true).show(ui, |ui| {
         ui.strong("Reactants");
@@ -49,9 +53,9 @@ pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld) {
             let free_energy = a.std_free_energy + b.std_free_energy - res.std_free_energy;
 
             ui.horizontal(|ui| {
-                ui.label(&a.name);
+                selectable_cmpd(ui, chem, compound_a, selected_cmpd);
                 ui.label("+");
-                ui.label(&b.name);
+                selectable_cmpd(ui, chem, compound_b, selected_cmpd);
             });
             ui.label("->");
             ui.label(&res.name);
@@ -61,7 +65,7 @@ pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld) {
     });
 }
 
-pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld) {
+pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Compounds");
     egui::Grid::new("compounds")
         .num_columns(5)
@@ -69,25 +73,26 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld) {
         .show(ui, |ui| {
             ui.strong("Index");
             ui.strong("Name");
-            ui.strong("Symbol");
-            ui.strong("Mass");
             ui.strong("Charge");
             ui.strong("Std. gibbs free energy");
+            ui.strong("Mass");
+            ui.strong("Symbol");
             ui.end_row();
 
-            for (idx, compound) in chem.laws.compounds.0.iter().enumerate() {
+            for (id@CompoundId(idx), compound) in chem.laws.compounds.enumerate() {
                 ui.label(format!("{idx}"));
-                ui.label(&compound.name);
-                ui.label(compound.display(&chem.laws.elements));
-                ui.label(format!("{} u", &compound.mass));
+                //ui.label(&compound.name);
+                selectable_cmpd(ui, chem, id, selected_cmpd);
                 ui.label(format!("{}", &compound.charge));
                 ui.label(format!("{} kJ/mol", &compound.std_free_energy));
+                ui.label(format!("{} u", &compound.mass));
+                ui.label(compound.display(&chem.laws.elements));
                 ui.end_row();
             }
         });
 }
 
-pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld) {
+pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Decompositions");
     for (compound_id, decompositions) in &chem.deriv.decompositions {
         let compound = &chem.laws.compounds[*compound_id];
@@ -103,9 +108,10 @@ pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld) {
                     ui.horizontal(|ui| {
                         ui.label("->");
                         for (i, (other_id, n)) in products.compounds.iter().enumerate().rev() {
-                            let other_compound = &chem.laws.compounds[*other_id];
+                            //let other_compound = &chem.laws.compounds[*other_id];
                             ui.label(n.to_string());
-                            ui.label(&other_compound.name);
+                            //ui.label(&other_compound.name);
+                            selectable_cmpd(ui, chem, *other_id, selected_cmpd);
                             if i != 0 {
                                 ui.label(" + ");
                             }
