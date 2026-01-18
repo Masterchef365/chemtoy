@@ -16,8 +16,7 @@ pub struct Particle {
     pub compound: CompoundId,
     pub pos: Pos2,
     pub vel: Vec2,
-    /// Should this particle decompose ASAP, and with how much energy?
-    pub to_decompose: Option<f32>,
+    pub is_stationary: bool,
 }
 
 pub struct SimConfig {
@@ -93,6 +92,11 @@ impl Sim {
                 k = Some(j);
             }
 
+            // Stationary particles
+            if self.particles[i].is_stationary {
+                self.particles[i].vel = Vec2::ZERO;
+            }
+
             // Gravity
             self.particles[i].vel.y += cfg.gravity * cfg.dt;
 
@@ -155,6 +159,11 @@ fn elastic_collision_vect(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) 
     let v2f = (2. * m1 * v1 - diff * v2) / denom;
     (v1f, v2f)
 }
+
+fn reflect(v1: Vec2, v2: Vec2) -> Vec2 {
+    v1 - 2.0 * v1.dot(v2) * v2
+}
+
 
 
 fn cross2d(a: Vec2, b: Vec2) -> f32 {
@@ -353,9 +362,17 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
             return Some(new_particle);
         }
 
-        let (vi, vj) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
-        particles[i].vel = vi; 
-        particles[j].vel = vj; 
+        // Scattering
+        if particles[i].is_stationary && !particles[j].is_stationary {
+            let v = reflect(particles[j].vel, diff.normalized());
+            particles[j].vel = v; 
+        }
+
+        if !particles[i].is_stationary && !particles[j].is_stationary {
+            let (vi, vj) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+            particles[i].vel = vi; 
+            particles[j].vel = vj; 
+        }
     }
 
     None

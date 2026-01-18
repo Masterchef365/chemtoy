@@ -84,6 +84,7 @@ pub struct ChemToyApp {
     sim_cfg: SimConfig,
     scene_rect: Rect,
     draw_compound: CompoundId,
+    draw_stationary: bool,
     paused: bool,
     slowdown: usize,
     frame_count: usize,
@@ -308,6 +309,7 @@ impl ChemToyApp {
         let cfg = SimConfig::default();
 
         Self {
+            draw_stationary: false,
             slowdown: 1,
             frame_count: 0,
             draw_compound,
@@ -380,8 +382,9 @@ impl ChemToyApp {
                             &mut self.draw_compound.0,
                             self.chem.laws.compounds.0.len(),
                             |i| self.chem.laws.compounds.0[i].name.clone(),
-                        )
+                        );
                     });
+                    ui.checkbox(&mut self.draw_stationary, "Stationary");
                 });
 
                 ui.group(|ui| {
@@ -550,7 +553,7 @@ impl ChemToyApp {
                                     compound: self.draw_compound,
                                     pos,
                                     vel: resp.drag_delta(),
-                                    to_decompose: None,
+                                    is_stationary: self.draw_stationary,
                                 });
                             }
                         }
@@ -597,7 +600,7 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId, density: 
                 compound,
                 pos,
                 vel: Vec2::ZERO,
-                to_decompose: None,
+                is_stationary: false,
             });
         }
     }
