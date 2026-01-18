@@ -35,6 +35,12 @@ pub struct SimConfig {
     pub morse_mag: f32,
 }
 
+fn morse_force(r0: f32, k: f32, r: f32) -> f32 {
+    let exp = (-k * (r - r0)).exp();
+    
+    2.0 * k * exp * (1.0 - exp)
+}
+
 impl Sim {
     pub fn new() -> Self {
         Self { particles: vec![] }
@@ -42,6 +48,50 @@ impl Sim {
 
     /// Steps forward by as much time as possible up to cfg.dt, returning the actual dt if time was advanced. If cfg.fill_timestep is false, acts like single_step().
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
+        // Arbitrary, must be larger than particle radius.
+        // TODO: Tune for perf.
+
+        // Build a map for the collisions
+
+        let mut elapsed = 0.0;
+        let mut remaining_loops = 1000;
+        while elapsed < cfg.dt {
+            if remaining_loops == 0 {
+                break;
+            }
+            remaining_loops -= 1;
+
+            let dt = self.single_step(cfg, chem);
+            elapsed += dt;
+
+            if !cfg.fill_timestep {
+                break;
+            }
+        }
+
+        elapsed
+    }
+
+    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
+        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * 5.0);
+
+        boundaries(&mut self.particles, cfg, chem, cfg.dt);
+
+        for i in 0..self.particles.len() {
+            // Inter-particle forces
+            for j in accel.query_neighbors_fast(i, points[i]) {
+                interact(&mut self.particles, i, j, cfg, chem);
+            }
+
+            // Gravity
+            self.particles[i].vel.y += cfg.gravity * cfg.dt;
+
+            // Time step
+            let vel = self.particles[i].vel;
+            self.particles[i].pos += vel * cfg.dt;
+        }
+
         cfg.dt
     }
 
@@ -331,4 +381,17 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
             }
         }
     }
+}
+
+fn interact(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) {
+    let cmpd_i = &chem.laws.compounds[particles[i].compound];
+    let cmpd_j = &chem.laws.compounds[particles[j].compound];
+
+    let diff = particles[j].pos - particles[i].pos;
+
+    let force = (cmpd_i.charge * cmpd_j.charge) as f32;
+    let force = force * diff.normalized() / diff.length_sq();
+
+    particles[i].vel -= force * cfg.dt;
+    particles[j].vel += force * cfg.dt;
 }

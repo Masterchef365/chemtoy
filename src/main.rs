@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hasher};
 
-use egui::{Color32, DragValue, Pos2, Rect, Stroke, Ui, Vec2};
+use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Compounds, Element, Elements, Laws};
 use rand::prelude::Distribution;
 use sim::*;
@@ -499,6 +499,11 @@ impl ChemToyApp {
                         &mut self.vis_cfg.show_velocity_vector,
                         "Show Velocity Vector",
                     );
+                    ui.checkbox(
+                        &mut self.vis_cfg.show_names,
+                        "Show Names",
+                    );
+
                 });
 
                 ui.group(|ui| {
@@ -600,6 +605,14 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: CompoundId, density: 
 
 struct VisualizationConfig {
     show_velocity_vector: bool,
+    show_names: bool,
+}
+
+fn compound_color(compound: CompoundId) -> Color32 {
+    let mut hash = std::hash::DefaultHasher::new();
+    hash.write_usize(compound.0);
+    let bytes = hash.finish().to_le_bytes();
+    Color32::from_rgb(bytes[0], bytes[1], bytes[2])
 }
 
 fn draw_particles(
@@ -611,24 +624,24 @@ fn draw_particles(
     vis_cfg: &VisualizationConfig,
 ) {
     for particle in particles {
-        let mut hash = std::hash::DefaultHasher::new();
-        hash.write_usize(particle.compound.0);
-        let bytes = hash.finish().to_le_bytes();
-        let color = Color32::from_rgb(bytes[0], bytes[1], bytes[2]);
+        let color = compound_color(particle.compound);
 
         ui.painter().circle_filled(
             particle.pos + rect.min.to_vec2(),
             cfg.particle_radius,
             color,
         );
-        let compound = &laws.compounds[particle.compound];
-        ui.painter().text(
-            particle.pos,
-            egui::Align2([egui::Align::Center; 2]),
-            &compound.name,
-            Default::default(),
-            Color32::WHITE,
-        );
+
+        if vis_cfg.show_names {
+            let compound = &laws.compounds[particle.compound];
+            ui.painter().text(
+                particle.pos,
+                egui::Align2([egui::Align::Center; 2]),
+                &compound.name,
+                Default::default(),
+                Color32::WHITE,
+            );
+        }
 
         if vis_cfg.show_velocity_vector {
             ui.painter().arrow(
@@ -644,6 +657,7 @@ impl Default for VisualizationConfig {
     fn default() -> Self {
         Self {
             show_velocity_vector: false,
+            show_names: false,
         }
     }
 }
@@ -661,9 +675,10 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Laws) {
 
     egui::Grid::new("stats").show(ui, |ui| {
         for (id, n) in sorted {
-            ui.label(&laws.compounds[id].name);
+            let percent = 100.0 * n as f32 / total as f32;
+            ui.label(RichText::new(&laws.compounds[id].name).color(compound_color(id)));
             ui.strong(n.to_string());
-            ui.strong(format!("{:.02}%", 100.0 * n as f32 / total as f32));
+            ui.strong(format!("{percent:.02}%"));
             ui.end_row();
         }
     });
