@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
@@ -117,8 +119,8 @@ impl Default for SimConfig {
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
-            coulomb_k: 1e5,
-            morse_mag: 1e5,
+            coulomb_k: 1e4,
+            morse_mag: 1e3,
             morse_alpha: 1.0,
             morse_radius: 10.0,
         }
@@ -282,86 +284,6 @@ enum IntersectionData {
     Particle { neighbor: usize },
 }
 
-fn morse_potential_deriv(cfg: &SimConfig, dist: f32) -> f32 {
-    // https://en.wikipedia.org/wiki/Morse_potential
-    let re = cfg.particle_radius; //cfg.morse_radius;
-    let a = 1.0 / re; //cfg.morse_alpha;
-    let d = cfg.morse_mag;
-    let exp = (-a * (dist - re)).exp();
-    //let morse = morse_mag * ((1. - exp).powi(2) - 1.0);
-    2.0 * d * a * (1.0 - exp) * exp
-}
-
-fn acceleration(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Vec<Vec2> {
-    // Particle velocity integration
-    let mut accel = vec![Vec2::ZERO; particles.len()];
-    for (i, acc) in accel.iter_mut().enumerate() {
-        for j in (0..particles.len()).filter(|&j| j != i) {
-            let [pi, pj] = [particles[i], particles[j]];
-            let diff = pj.pos - pi.pos; // i -> j
-            let n = diff.normalized();
-            let dist = diff.length();
-
-            let ci = &chem.laws.compounds[pi.compound];
-            let cj = &chem.laws.compounds[pj.compound];
-            let coulomb = ((ci.charge * cj.charge) as f32 * cfg.coulomb_k)
-                / (diff.length_sq() + cfg.coulomb_softening);
-
-            let morse = morse_potential_deriv(cfg, dist);
-
-            let force = morse + coulomb;
-
-            let dp = force * n;
-            *acc -= dp / ci.mass;
-        }
-    }
-    accel
-}
-
-fn integrate_velocity(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
-    let k1 = acceleration(particles, cfg, chem);
-
-    let mut y1 = particles.to_vec();
-    y1.iter_mut()
-        .zip(&k1)
-        .for_each(|(part, acc)| part.vel += *acc * dt / 2.0);
-    y1.iter_mut()
-        .for_each(|part| part.pos += part.vel * dt / 2.0);
-    let k2 = acceleration(&y1, cfg, chem);
-
-    let mut y2 = particles.to_vec();
-    y2.iter_mut()
-        .zip(&k2)
-        .for_each(|(part, acc)| part.vel += *acc * dt / 2.0);
-    y2.iter_mut()
-        .for_each(|part| part.pos += part.vel * dt / 2.0);
-    let k3 = acceleration(&y2, cfg, chem);
-
-    let mut y3 = particles.to_vec();
-    y3.iter_mut()
-        .zip(&k2)
-        .for_each(|(part, acc)| part.vel += *acc * dt);
-    y3.iter_mut().for_each(|part| part.pos += part.vel * dt);
-    let k4 = acceleration(&y3, cfg, chem);
-
-    for (((part, y1), y2), y3) in particles.iter_mut().zip(&y1).zip(&y2).zip(&y3) {
-        part.pos += (dt / 6.0) * (part.vel + 2.0 * y1.vel + 2.0 * y2.vel + y3.vel);
-    }
-
-    for ((((part, k1), k2), k3), k4) in particles.iter_mut().zip(&k1).zip(&k2).zip(&k3).zip(&k4) {
-        part.vel += (dt / 6.0) * (*k1 + *k2 * 2.0 + *k3 * 2.0 + *k4);
-    }
-
-    //let accel = acceleration(particles, cfg, chem);
-    //for (part, acc) in particles.iter_mut().zip(&accel) {
-        //part.vel += *acc * dt;
-    for part in particles.iter_mut() {
-        part.pos += part.vel * dt;
-    }
-
-    boundaries(particles, cfg, chem, dt);
-}
-
 fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
     // Boundaries
     for part in particles.iter_mut() {
@@ -389,8 +311,17 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, che
 
     let diff = particles[j].pos - particles[i].pos;
 
-    let force = (cmpd_i.charge * cmpd_j.charge) as f32;
-    let force = force * diff.normalized() / diff.length_sq();
+    let d2 = (cfg.particle_radius * 2.0).powi(2);
+
+    let charge = (cmpd_i.charge * cmpd_j.charge) as f32;
+    //let coulomb_force = force / diff.length_sq();
+    let coulomb_force = charge * (-diff.length_sq() / d2).exp();
+
+    let vanderwalls = -(-diff.length_sq() / d2).exp();
+
+    let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.morse_mag;
+
+    let force = force * diff.normalized();
 
     particles[i].vel -= force * cfg.dt;
     particles[j].vel += force * cfg.dt;
