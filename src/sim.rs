@@ -82,8 +82,11 @@ impl Sim {
 
         for i in 0..self.particles.len() {
             // Inter-particle forces
+            let mut k = None;
             for j in accel.query_neighbors_fast(i, points[i]) {
-                interact(&mut self.particles, i, j, cfg, chem);
+                interact(&mut self.particles, i, j, k, cfg, chem);
+                // We store an extra neighbor for 3 body interactions
+                k = Some(j);
             }
 
             // Gravity
@@ -305,19 +308,22 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
     }
 }
 
-fn interact(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) {
+fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld) {
+    // Medium-range interactions
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
 
     let diff = particles[j].pos - particles[i].pos;
+    let r2 = diff.length_sq();
 
-    let d2 = (cfg.particle_radius * 2.0).powi(2);
+    let d = cfg.particle_radius * 2.0;
+    let d2 = d.powi(2);
 
     let charge = (cmpd_i.charge * cmpd_j.charge) as f32;
     //let coulomb_force = force / diff.length_sq();
-    let coulomb_force = charge * (-diff.length_sq() / d2).exp();
+    let coulomb_force = charge * (-r2 / d2).exp();
 
-    let vanderwalls = -(-diff.length_sq() / d2).exp();
+    let vanderwalls = -(-r2 / d2).exp();
 
     let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.morse_mag;
 
@@ -325,4 +331,26 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, che
 
     particles[i].vel -= force * cfg.dt;
     particles[j].vel += force * cfg.dt;
+
+    let r = r2.sqrt();
+
+    // Collision
+    let rvel = particles[j].vel - particles[i].vel;
+    let may_collide = rvel.dot(diff) < 0.0;
+
+    if r < d && may_collide {
+        if let Some(k) = k {
+            if react(particles, i, j, k, cfg, chem) {
+                return;
+            }
+        }
+
+        let (vi, vj) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+        particles[i].vel = vi; 
+        particles[j].vel = vj; 
+    }
+}
+
+fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
+    false
 }
