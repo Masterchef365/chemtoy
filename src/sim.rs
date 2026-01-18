@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::ops::Neg;
 
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
@@ -31,9 +32,9 @@ pub struct SimConfig {
 
     pub coulomb_softening: f32,
     pub coulomb_k: f32,
-    pub morse_alpha: f32,
-    pub morse_radius: f32,
-    pub morse_mag: f32,
+    //pub morse_alpha: f32,
+    pub max_interaction_dist: f32,
+    pub vanderwaals_mag: f32,
 }
 
 fn morse_force(r0: f32, k: f32, r: f32) -> f32 {
@@ -75,19 +76,18 @@ impl Sim {
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * 5.0);
+        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * cfg.max_interaction_dist);
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt);
 
         let mut new_particles: Vec<Particle> = vec![];
+        let mut removed_particles = vec![];
 
         for i in 0..self.particles.len() {
             // Inter-particle forces
             let mut k = None;
             for j in accel.query_neighbors_fast(i, points[i]) {
-                if let Some(new_particle) = interact(&mut self.particles, i, j, k, cfg, chem) {
-                    new_particles.push(new_particle);
-                }
+                interact(&mut self.particles, i, j, k, cfg, chem, &mut new_particles, &mut removed_particles);
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
             }
@@ -104,6 +104,14 @@ impl Sim {
             let vel = self.particles[i].vel;
             self.particles[i].pos += vel * cfg.dt;
         }
+
+        removed_particles.sort_unstable_by_key(|f| Reverse(*f));
+        removed_particles.dedup();
+        for i in removed_particles {
+            self.particles.swap_remove(i);
+        }
+
+        self.particles.extend_from_slice(&new_particles);
 
         cfg.dt
     }
@@ -131,9 +139,9 @@ impl Default for SimConfig {
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
             coulomb_k: 1e3,
-            morse_mag: 1e2,
-            morse_alpha: 1.0,
-            morse_radius: 10.0,
+            vanderwaals_mag: 1e2,
+            //morse_alpha: 1.0,
+            max_interaction_dist: 5.0,
         }
     }
 }
@@ -321,7 +329,7 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
     }
 }
 
-fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
+fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld, add_list: &mut Vec<Particle>, remove_list: &mut Vec<usize>) -> Option<Particle> {
     // Medium-range interactions
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
@@ -338,7 +346,7 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
 
     let vanderwalls = -(-r2 / d2).exp();
 
-    let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.morse_mag;
+    let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.vanderwaals_mag;
 
     let force = force * diff.normalized();
 
@@ -354,12 +362,13 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
     if r < d && may_collide {
         if let Some(k) = k {
             if react(particles, i, j, k, cfg, chem) {
+                remove_list.push(i);
                 return None;
             }
         }
 
         if let Some(new_particle) = decompose(particles, i, j, cfg, chem) {
-            return Some(new_particle);
+            add_list.push(new_particle);
         }
 
         // Scattering
@@ -379,9 +388,10 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
 }
 
 fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
-    false
+    true
 }
 
 fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
-    None
+    let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
+    Some(Particle { compound: CompoundId(0), pos, vel: Vec2::ZERO, is_stationary: false })
 }

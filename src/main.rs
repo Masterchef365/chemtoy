@@ -427,10 +427,13 @@ impl ChemToyApp {
                         ui.label("Gravity: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.gravity).speed(1e-2));
                     });
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Speed limit: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
                     });
+                    */
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Kinetic energy scale factor: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.kjmol_per_sim_energy).speed(1e-2));
@@ -440,10 +443,11 @@ impl ChemToyApp {
                         ui.label("Morse alpha: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.morse_alpha).speed(1e-2));
                     });
+                    */
 
                     ui.horizontal(|ui| {
-                        ui.label("Morse magnitude: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.morse_mag).speed(1e-2));
+                        ui.label("Van der waals magnitude: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.vanderwaals_mag).speed(1e-2));
                     });
 
                     /*
@@ -458,10 +462,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.coulomb_k).speed(1e-2));
                     });
 
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Coulomb softening: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.coulomb_softening).speed(1e-2));
                     });
+                    */
 
 
 
