@@ -80,11 +80,15 @@ impl Sim {
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt);
 
+        let mut new_particles: Vec<Particle> = vec![];
+
         for i in 0..self.particles.len() {
             // Inter-particle forces
             let mut k = None;
             for j in accel.query_neighbors_fast(i, points[i]) {
-                interact(&mut self.particles, i, j, k, cfg, chem);
+                if let Some(new_particle) = interact(&mut self.particles, i, j, k, cfg, chem) {
+                    new_particles.push(new_particle);
+                }
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
             }
@@ -308,7 +312,7 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
     }
 }
 
-fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld) {
+fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
     // Medium-range interactions
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
@@ -341,16 +345,26 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
     if r < d && may_collide {
         if let Some(k) = k {
             if react(particles, i, j, k, cfg, chem) {
-                return;
+                return None;
             }
+        }
+
+        if let Some(new_particle) = decompose(particles, i, j, cfg, chem) {
+            return Some(new_particle);
         }
 
         let (vi, vj) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
         particles[i].vel = vi; 
         particles[j].vel = vj; 
     }
+
+    None
 }
 
 fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
     false
+}
+
+fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
+    None
 }
