@@ -119,8 +119,8 @@ impl Default for SimConfig {
             gravity: 9.8,
             speed_limit: 500.0,
             kjmol_per_sim_energy: 1e-2, // Arbitrary
-            coulomb_k: 1e4,
-            morse_mag: 1e3,
+            coulomb_k: 1e3,
+            morse_mag: 1e2,
             morse_alpha: 1.0,
             morse_radius: 10.0,
         }
