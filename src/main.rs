@@ -450,6 +450,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.vanderwaals_mag).speed(1e-2));
                     });
 
+                    ui.horizontal(|ui| {
+                        ui.label("Max interaction radius: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.max_interaction_dist).speed(1e-2));
+                    });
+
+
                     /*
                     ui.horizontal(|ui| {
                         ui.label("Morse radius: ");

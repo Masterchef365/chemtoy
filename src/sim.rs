@@ -76,7 +76,7 @@ impl Sim {
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.particle_radius * 2.0 * cfg.max_interaction_dist);
+        let accel = QueryAccelerator::new(&points, cfg.max_interaction_dist.max(cfg.particle_radius));
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt);
 
@@ -86,7 +86,7 @@ impl Sim {
         for i in 0..self.particles.len() {
             // Inter-particle forces
             let mut k = None;
-            for j in accel.query_neighbors_fast(i, points[i]) {
+            for j in accel.query_neighbors(&points, i, points[i]) {
                 interact(&mut self.particles, i, j, k, cfg, chem, &mut new_particles, &mut removed_particles);
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
@@ -141,7 +141,7 @@ impl Default for SimConfig {
             coulomb_k: 1e3,
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
-            max_interaction_dist: 5.0,
+            max_interaction_dist: 15.0,
         }
     }
 }
