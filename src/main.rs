@@ -686,7 +686,7 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Laws) {
     let total: usize = counts.iter().map(|(_, n)| *n).sum();
 
     let mut sorted: Vec<(CompoundId, usize)> = counts.into_iter().collect();
-    sorted.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+    sorted.sort_unstable_by_key(|(CompoundId(c), n)| std::cmp::Reverse((*n, *c)));
 
     egui::Grid::new("stats").show(ui, |ui| {
         for (id, n) in sorted {
