@@ -414,6 +414,13 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
     let cmpd_k = &chem.laws.compounds[particles[k].compound];
 
+    /*
+    let total_ke_init = 
+        kinetic_energy(particles[i].vel, cmpd_i.mass)
+        + kinetic_energy(particles[k].vel, cmpd_k.mass)
+        + kinetic_energy(particles[j].vel, cmpd_j.mass);
+    */
+
     let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass) + kinetic_energy(particles[j].vel, cmpd_j.mass);
 
     let Some(product) = chem.deriv.synthesis.lookup(particles[i].compound, particles[j].compound) else { return false; };
@@ -423,15 +430,26 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
 
     let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass);
 
-    let de = ke_end - ke_init;
+    let de = ke_init - ke_end;
 
-    let e = (ke_end/ke_init).sqrt();
-    let (vj, vk) = restitution_collision(new_cmpd_j.mass, particles[j].vel, cmpd_k.mass, particles[k].vel, e);
-    particles[k].vel = vk;
-    particles[j].vel = vj;
+    let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass);
 
-    dbg!(de);
+    if ke_k == 0.0 || de + ke_k <= 0.0 {
+        return false;
+    }
 
+    let e = ((de + ke_k)/ke_k).sqrt();
+
+    particles[k].vel *= e;
+
+    /*
+    let total_ke_end = 
+        kinetic_energy(particles[k].vel, cmpd_k.mass)
+        + kinetic_energy(particles[j].vel, new_cmpd_j.mass);
+    */
+
+    //dbg!(total_ke_end - total_ke_init);
+    
     true
 }
 
