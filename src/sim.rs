@@ -325,6 +325,8 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
                     part.pos[i] = cfg.particle_radius + margin;
                 }
             }
+
+            part.pos[i] = part.pos[i].clamp(cfg.particle_radius, cfg.dimensions[i] - cfg.particle_radius);
         }
     }
 }
@@ -387,11 +389,39 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
     None
 }
 
+fn inelastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> Vec2 {
+    (m1 * v1 + m2 * v2) / (m1 + m2)
+}
+
+fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
+    vel.length_sq() * mass * 0.5
+}
+
+/// Returns true if the particle at index `i` should be deleted.
+/// Particle j will become the product
+/// Particle k will receive any excess kinetic energy
 fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
+    let cmpd_i = &chem.laws.compounds[particles[i].compound];
+    let cmpd_j = &chem.laws.compounds[particles[i].compound];
+
+    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass) + kinetic_energy(particles[j].vel, cmpd_j.mass);
+
+    let Some(product) = chem.deriv.synthesis.lookup(particles[i].compound, particles[j].compound) else { return false; };
+    particles[j].vel = inelastic_collision(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+    particles[j].compound = product;
+    let new_cmpd_j = &chem.laws.compounds[product];
+
+    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass);
+
+    let de = ke_end - ke_init;
+
+    dbg!(de);
+
     true
 }
 
 fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
-    let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
-    Some(Particle { compound: CompoundId(0), pos, vel: Vec2::ZERO, is_stationary: false })
+    //let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
+    //Some(Particle { compound: CompoundId(0), pos, vel: Vec2::ZERO, is_stationary: false })
+    None
 }
