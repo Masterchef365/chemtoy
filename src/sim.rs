@@ -393,6 +393,15 @@ fn inelastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> Vec2 {
     (m1 * v1 + m2 * v2) / (m1 + m2)
 }
 
+fn restitution_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2, e: f32) -> (Vec2, Vec2) {
+    let total_mass = m1 + m2;
+    let total_momentum = m1 * v1 + m2 * v2;
+    (
+        (e * m2 * (v2 - v1) + total_momentum) / total_mass,
+        (e * m1 * (v1 - v2) + total_momentum) / total_mass,
+    )
+}
+
 fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
     vel.length_sq() * mass * 0.5
 }
@@ -402,7 +411,8 @@ fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
 /// Particle k will receive any excess kinetic energy
 fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
-    let cmpd_j = &chem.laws.compounds[particles[i].compound];
+    let cmpd_j = &chem.laws.compounds[particles[j].compound];
+    let cmpd_k = &chem.laws.compounds[particles[k].compound];
 
     let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass) + kinetic_energy(particles[j].vel, cmpd_j.mass);
 
@@ -414,6 +424,11 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
     let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass);
 
     let de = ke_end - ke_init;
+
+    let e = (ke_end/ke_init).sqrt();
+    let (vj, vk) = restitution_collision(new_cmpd_j.mass, particles[j].vel, cmpd_k.mass, particles[k].vel, e);
+    particles[k].vel = vk;
+    particles[j].vel = vj;
 
     dbg!(de);
 
