@@ -83,11 +83,13 @@ impl Sim {
         let mut new_particles: Vec<Particle> = vec![];
         let mut removed_particles = vec![];
 
+        let mut changed = vec![false; self.particles.len()];
+
         for i in 0..self.particles.len() {
             // Inter-particle forces
             let mut k = None;
             for j in accel.query_neighbors(&points, i, points[i]) {
-                interact(&mut self.particles, i, j, k, cfg, chem, &mut new_particles, &mut removed_particles);
+                interact(&mut self.particles, i, j, k, cfg, chem, &mut new_particles, &mut removed_particles, &mut changed);
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
             }
@@ -331,7 +333,7 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
     }
 }
 
-fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld, add_list: &mut Vec<Particle>, remove_list: &mut Vec<usize>) -> Option<Particle> {
+fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld, add_list: &mut Vec<Particle>, remove_list: &mut Vec<usize>, changed: &mut [bool]) -> Option<Particle> {
     // Medium-range interactions
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
@@ -363,14 +365,20 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
 
     if r < d && may_collide {
         if let Some(k) = k {
-            if react(particles, i, j, k, cfg, chem) {
+            if !(changed[i] || changed[j]) && react(particles, i, j, k, cfg, chem) {
+                changed[i] = true;
+                changed[j] = true;
                 remove_list.push(i);
                 return None;
             }
         }
 
-        if let Some(new_particle) = decompose(particles, i, j, cfg, chem) {
-            add_list.push(new_particle);
+        if !(changed[i] || changed[j]) {
+            if let Some(new_particle) = decompose(particles, i, j, cfg, chem) {
+                changed[i] = true;
+                changed[j] = true;
+                add_list.push(new_particle);
+            }
         }
 
         // Scattering

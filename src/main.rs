@@ -476,9 +476,6 @@ impl ChemToyApp {
                     */
 
 
-
-                    /*
-                    // TODO: Neglects mass...
                     let potential_energy = self
                         .sim
                         .particles
@@ -490,6 +487,7 @@ impl ChemToyApp {
                                 * self.sim_cfg.gravity
                         })
                         .sum::<f32>();
+
                     let kinetic_energy = self
                         .sim
                         .particles
@@ -500,11 +498,12 @@ impl ChemToyApp {
                                 / 2.0
                         })
                         .sum::<f32>();
+
                     let total_energy = potential_energy + kinetic_energy;
+
                     ui.label(format!("Potential energy: {potential_energy:.02}"));
                     ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
                     ui.label(format!("Total energy: {total_energy}"));
-                    */
 
                 });
 
