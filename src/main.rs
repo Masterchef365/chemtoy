@@ -433,12 +433,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
                     });
                     */
-                    /*
                     ui.horizontal(|ui| {
-                        ui.label("Kinetic energy scale factor: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.kjmol_per_sim_energy).speed(1e-2));
+                        ui.label("Temperature: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.temperature).speed(1e-2));
                     });
 
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Morse alpha: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.morse_alpha).speed(1e-2));
@@ -475,7 +475,7 @@ impl ChemToyApp {
                     });
                     */
 
-
+                    /*
                     let potential_energy = self
                         .sim
                         .particles
@@ -504,6 +504,7 @@ impl ChemToyApp {
                     ui.label(format!("Potential energy: {potential_energy:.02}"));
                     ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
                     ui.label(format!("Total energy: {total_energy}"));
+                    */
 
                 });
 

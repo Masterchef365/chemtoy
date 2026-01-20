@@ -28,7 +28,7 @@ pub struct SimConfig {
     pub fill_timestep: bool,
     pub gravity: f32,
     pub speed_limit: f32,
-    pub kjmol_per_sim_energy: f32,
+    pub temperature: f32,
 
     pub coulomb_softening: f32,
     pub coulomb_k: f32,
@@ -139,7 +139,7 @@ impl Default for SimConfig {
             fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
-            kjmol_per_sim_energy: 1e-2, // Arbitrary
+            temperature: 1e-2, // Arbitrary
             coulomb_k: 1e3,
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
@@ -432,9 +432,16 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
     let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass) + kinetic_energy(particles[j].vel, cmpd_j.mass);
 
     let Some(product) = chem.deriv.synthesis.lookup(particles[i].compound, particles[j].compound) else { return false; };
+    let new_cmpd_j = &chem.laws.compounds[product];
+
+    let dg = new_cmpd_j.std_free_energy - cmpd_i.std_free_energy - cmpd_j.std_free_energy;
+    let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
+    if rand::thread_rng().gen_bool(1f64 - p as f64) {
+        return false;
+    }
+
     particles[j].vel = inelastic_collision(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
     particles[j].compound = product;
-    let new_cmpd_j = &chem.laws.compounds[product];
 
     let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass);
 
@@ -461,6 +468,8 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
     true
 }
 
+// Product i will be decomposed into particles a and b. It will be replaced with particle a, and
+// Some(b) will be returned.
 fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
     let cmpd_i = &chem.laws.compounds[particles[i].compound];
     let cmpd_j = &chem.laws.compounds[particles[j].compound];
@@ -471,6 +480,16 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
     let mut compounds = productset.compounds.keys().copied();
     let product_a = compounds.next().unwrap();
     let product_b = compounds.next().unwrap_or(product_a);
+
+    let cmpd_a = &chem.laws.compounds[product_a];
+    let cmpd_b = &chem.laws.compounds[product_a];
+
+    let dg = cmpd_a.std_free_energy + cmpd_b.std_free_energy - cmpd_i.std_free_energy;
+
+    let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
+    if rand::thread_rng().gen_bool(1f64 - p as f64) {
+        return None;
+    }
 
     let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
     particles[j].vel = vel_j;
