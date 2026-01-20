@@ -471,6 +471,8 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
     particles[i].compound = product_a;
 
     let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
+    let pos2 = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 4.0;
+    particles[j].pos = pos2;
 
     Some(Particle { compound: product_b, pos, vel: Vec2::ZERO, is_stationary: false })
 }
