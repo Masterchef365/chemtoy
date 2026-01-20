@@ -1,2 +1,2 @@
-Color code the percentages
-Hide the names by default or show text in groups somehow (dbscan?)
+- [ ] Show the text in groups somehow (dbscan?)
+- [ ] Preserve momentum in collisions (for now only preserves total kinetic energy)

@@ -5,7 +5,7 @@ use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
-use rand::seq::SliceRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 use rand::Rng;
 
 pub struct Sim {
@@ -454,7 +454,23 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
 }
 
 fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
-    //let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
-    //Some(Particle { compound: CompoundId(0), pos, vel: Vec2::ZERO, is_stationary: false })
-    None
+    let cmpd_i = &chem.laws.compounds[particles[i].compound];
+    let cmpd_j = &chem.laws.compounds[particles[j].compound];
+
+    let productsets = &chem.deriv.decompositions[&particles[i].compound];
+    let mut rng = rand::thread_rng();
+    let productset = productsets.products.iter().filter(|x| x.count() == 2).choose(&mut rng)?;
+    let mut compounds = productset.compounds.keys().copied();
+    let product_a = compounds.next().unwrap();
+    let product_b = compounds.next().unwrap_or(product_a);
+
+    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+    particles[j].vel = vel_j;
+    particles[i].vel = vel_i;
+
+    particles[i].compound = product_a;
+
+    let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
+
+    Some(Particle { compound: product_b, pos, vel: Vec2::ZERO, is_stationary: false })
 }
