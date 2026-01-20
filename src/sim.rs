@@ -139,7 +139,7 @@ impl Default for SimConfig {
             fill_timestep: true,
             gravity: 9.8,
             speed_limit: 500.0,
-            temperature: 1e-2, // Arbitrary
+            temperature: 100., // Arbitrary
             coulomb_k: 1e3,
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
