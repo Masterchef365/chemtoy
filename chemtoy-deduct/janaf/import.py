@@ -12,7 +12,7 @@ from janaf_parse import analyze_formula, ELEMENT_MASSES
 regex=f"(({ELEMENTS})+[0-9]*)+[+-]?$"
 #regex=f"(({ELEMENTS})+[0-9]*)+$"
 filter = pl.col("formula").str.contains(f"^{regex}")
-filter &= pl.col("phase").str.contains('^g|ref')
+filter &= pl.col("phase").str.contains('^g')
 
 filtered = janaf.db.filter(filter)
 

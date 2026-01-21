@@ -475,26 +475,6 @@
  ],
  "compounds": [
   {
-   "name": "S, Sulfur (ref)",
-   "formula": "S",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 32.06,
-   "composition": {
-    "S": 1
-   }
-  },
-  {
-   "name": "C, Carbon (ref)",
-   "formula": "C",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 12.011,
-   "composition": {
-    "C": 1
-   }
-  },
-  {
    "name": "C, Carbon (g)",
    "formula": "C",
    "delta_g": 671.244,
@@ -1103,16 +1083,6 @@
    }
   },
   {
-   "name": "H2, Hydrogen (ref)",
-   "formula": "H2",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 2.01568,
-   "composition": {
-    "H": 2
-   }
-  },
-  {
    "name": "H2+, Hydrogen, Ion (g)",
    "formula": "H2+",
    "delta_g": 1484.931,
@@ -1362,16 +1332,6 @@
    }
   },
   {
-   "name": "N2, Nitrogen (ref)",
-   "formula": "N2",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 28.014,
-   "composition": {
-    "N": 2
-   }
-  },
-  {
    "name": "N2+, Nitrogen, Ion (g)",
    "formula": "N2+",
    "delta_g": 1501.44,
@@ -1520,16 +1480,6 @@
    }
   },
   {
-   "name": "O2, Oxygen (ref)",
-   "formula": "O2",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 31.998,
-   "composition": {
-    "O": 2
-   }
-  },
-  {
    "name": "O2+, Oxygen, Ion (g)",
    "formula": "O2+",
    "delta_g": 1164.315,
@@ -1612,16 +1562,6 @@
    "composition": {
     "O": 10,
     "P": 4
-   }
-  },
-  {
-   "name": "P, Phosphorus (ref)",
-   "formula": "P",
-   "delta_g": 0.0,
-   "charge": 0,
-   "mass": 30.973761998,
-   "composition": {
-    "P": 1
    }
   },
   {
