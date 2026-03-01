@@ -388,7 +388,7 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
         }
 
         if !particles[i].is_stationary && !particles[j].is_stationary {
-            let (vi, vj) = elastic_collision_vect(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
+            let (vi, vj) = elastic_collision_vect(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
             particles[i].vel = vi; 
             particles[j].vel = vj; 
         }
@@ -429,7 +429,7 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
         + kinetic_energy(particles[j].vel, cmpd_j.mass);
     */
 
-    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_amu) + kinetic_energy(particles[j].vel, cmpd_j.mass_amu);
+    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_kg) + kinetic_energy(particles[j].vel, cmpd_j.mass_kg);
 
     let Some(product) = chem.deriv.synthesis.get(&(particles[i].compound.clone(), particles[j].compound.clone())) else { return false; };
     let new_cmpd_j = &chem.deriv.compound_lookup[&product.product];
@@ -437,18 +437,19 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
     let dg = product.activation_energy;
 
     let p = dg.rate(cfg.temperature).clamp(0.0, 1.0);
+    let p = 1.0;
     if rand::thread_rng().gen_bool(1f64 - p as f64) {
         return false;
     }
 
-    particles[j].vel = inelastic_collision(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
+    particles[j].vel = inelastic_collision(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
     particles[j].compound = product.product.clone();
 
-    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_amu);
+    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_kg);
 
     let de = ke_init - ke_end;
 
-    let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass_amu);
+    let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass_kg);
 
     if ke_k == 0.0 || de + ke_k <= 0.0 {
         return false;
@@ -475,7 +476,7 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
 
-    let productsets = &chem.deriv.decompositions[&particles[i].compound];
+    let productsets = &chem.deriv.decompositions.get(&particles[i].compound)?;
     let mut rng = rand::thread_rng();
     let productset = productsets.choose(&mut rng)?;
     let compounds = &productset.products;
@@ -485,11 +486,12 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
     let dg = productset.activation_energy.rate(cfg.temperature);
 
     let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
+    let p = 0.0;
     if rand::thread_rng().gen_bool(1f64 - p as f64) {
         return None;
     }
 
-    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
+    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
     particles[j].vel = vel_j;
     particles[i].vel = vel_i;
 

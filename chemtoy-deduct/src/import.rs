@@ -17,7 +17,7 @@ pub struct Laws {
 pub struct Compound {
     pub smiles: CompoundId,
     pub label: IString,
-    pub mass_amu: f32,
+    pub mass_kg: f32,
     pub inchi: IString,
     pub charge: f32,
 }

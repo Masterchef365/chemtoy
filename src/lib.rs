@@ -29,7 +29,13 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
                 ui.heading(cmpd.label.as_ref());
                 ui.strong("Info");
                 egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
-                    let Compound { smiles, label, mass_amu, inchi, charge } = cmpd;
+                    let Compound {
+                        smiles,
+                        label,
+                        mass_kg: mass_amu,
+                        inchi,
+                        charge,
+                    } = cmpd;
                     ui.strong("Label: ");
                     ui.label(label.as_ref());
                     ui.end_row();
@@ -96,16 +102,18 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
 
                 ui.strong("Decompositions");
                 egui::Grid::new("cmpd_decomp").striped(true).show(ui, |ui| {
-                    for productset in &chem.deriv.decompositions[&selected_cmpd] {
-                        ui.label("->");
-                        for (i, other_id) in productset.products.iter().enumerate().rev() {
-                            selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
-                            if i != 0 {
-                                ui.label(" + ");
+                    if let Some(d) = chem.deriv.decompositions.get(&selected_cmpd) {
+                        for productset in d {
+                            ui.label("->");
+                            for (i, other_id) in productset.products.iter().enumerate().rev() {
+                                selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
+                                if i != 0 {
+                                    ui.label(" + ");
+                                }
                             }
+                            ui.end_row();
                         }
                     }
-                    ui.end_row();
                 });
                 ui.separator();
             });
@@ -176,7 +184,7 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
                 selectable_cmpd(ui, chem, compound.smiles.clone(), selected_cmpd);
                 ui.label(format!("Mass: {}", &compound.charge));
                 //ui.label(format!("{} kJ/mol", &compound.std_free_energy));
-                ui.label(format!("{} amu", &compound.mass_amu));
+                ui.label(format!("{} kg", &compound.mass_kg));
                 //ui.label(compound.display(&chem.laws.elements));
                 ui.end_row();
             }
