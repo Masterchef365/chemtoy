@@ -12,7 +12,7 @@ pub struct Sim {
     pub particles: Vec<Particle>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Particle {
     pub compound: CompoundId,
     pub pos: Pos2,
