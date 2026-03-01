@@ -1,12 +1,10 @@
-use crate::{derivations::Derivations, import::ImportFile};
+use crate::{derivations::Derivations, import::Laws};
 
 pub use import::*;
 
 mod import;
-mod laws;
+//mod laws;
 mod derivations;
-
-const COMPOUNDS_JSON: &str = include_str!("compounds.json");
 
 #[derive(Clone, Debug)]
 pub struct ChemicalWorld {
@@ -24,8 +22,5 @@ impl ChemicalWorld {
 }
 
 pub fn load_builtin() -> ChemicalWorld {
-    println!("Loading database...");
-    let import: ImportFile = serde_json::de::from_str(COMPOUNDS_JSON).unwrap();
-    println!("Deriving laws...");
-    ChemicalWorld::from_laws(import.convert())
+    ChemicalWorld::from_laws(Laws::built_in())
 }
