@@ -335,8 +335,8 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
 
 fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld, add_list: &mut Vec<Particle>, remove_list: &mut Vec<usize>, changed: &mut [bool]) -> Option<Particle> {
     // Medium-range interactions
-    let cmpd_i = &chem.laws.compounds[particles[i].compound];
-    let cmpd_j = &chem.laws.compounds[particles[j].compound];
+    let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
+    let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
 
     let diff = particles[j].pos - particles[i].pos;
     let r2 = diff.length_sq();
@@ -388,7 +388,7 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
         }
 
         if !particles[i].is_stationary && !particles[j].is_stationary {
-            let (vi, vj) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+            let (vi, vj) = elastic_collision_vect(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
             particles[i].vel = vi; 
             particles[j].vel = vj; 
         }
@@ -418,9 +418,9 @@ fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
 /// Particle j will become the product
 /// Particle k will receive any excess kinetic energy
 fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
-    let cmpd_i = &chem.laws.compounds[particles[i].compound];
-    let cmpd_j = &chem.laws.compounds[particles[j].compound];
-    let cmpd_k = &chem.laws.compounds[particles[k].compound];
+    let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
+    let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
+    let cmpd_k = &chem.deriv.compound_lookup[&particles[k].compound];
 
     /*
     let total_ke_init = 
@@ -429,25 +429,26 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
         + kinetic_energy(particles[j].vel, cmpd_j.mass);
     */
 
-    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass) + kinetic_energy(particles[j].vel, cmpd_j.mass);
+    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_amu) + kinetic_energy(particles[j].vel, cmpd_j.mass_amu);
 
-    let Some(product) = chem.deriv.synthesis.lookup(particles[i].compound, particles[j].compound) else { return false; };
-    let new_cmpd_j = &chem.laws.compounds[product];
+    let Some(product) = chem.deriv.synthesis.get(&(particles[i].compound.clone(), particles[j].compound.clone())) else { return false; };
+    let new_cmpd_j = &chem.deriv.compound_lookup[&product.product];
 
-    let dg = new_cmpd_j.std_free_energy - cmpd_i.std_free_energy - cmpd_j.std_free_energy;
-    let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
+    let dg = product.activation_energy;
+
+    let p = dg.rate(cfg.temperature).clamp(0.0, 1.0);
     if rand::thread_rng().gen_bool(1f64 - p as f64) {
         return false;
     }
 
-    particles[j].vel = inelastic_collision(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
-    particles[j].compound = product;
+    particles[j].vel = inelastic_collision(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
+    particles[j].compound = product.product.clone();
 
-    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass);
+    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_amu);
 
     let de = ke_init - ke_end;
 
-    let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass);
+    let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass_amu);
 
     if ke_k == 0.0 || de + ke_k <= 0.0 {
         return false;
@@ -471,8 +472,8 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
 // Product i will be decomposed into particles a and b. It will be replaced with particle a, and
 // Some(b) will be returned.
 fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
-    let cmpd_i = &chem.laws.compounds[particles[i].compound];
-    let cmpd_j = &chem.laws.compounds[particles[j].compound];
+    let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
+    let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
 
     let productsets = &chem.deriv.decompositions[&particles[i].compound];
     let mut rng = rand::thread_rng();

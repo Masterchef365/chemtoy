@@ -96,17 +96,16 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
 
                 ui.strong("Decompositions");
                 egui::Grid::new("cmpd_decomp").striped(true).show(ui, |ui| {
-                    let productset = &chem.deriv.decompositions[&selected_cmpd].products;
-                        ui.horizontal(|ui| {
-                            ui.label("->");
-                            for (i, other_id) in productset.iter().enumerate().rev() {
-                                selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
-                                if i != 0 {
-                                    ui.label(" + ");
-                                }
+                    for productset in &chem.deriv.decompositions[&selected_cmpd] {
+                        ui.label("->");
+                        for (i, other_id) in productset.products.iter().enumerate().rev() {
+                            selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
+                            if i != 0 {
+                                ui.label(" + ");
                             }
-                        });
-                        ui.end_row();
+                        }
+                    }
+                    ui.end_row();
                 });
                 ui.separator();
             });
@@ -186,7 +185,7 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
 
 pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Decompositions");
-    for (compound_id, decomposition) in &chem.deriv.decompositions {
+    for (compound_id, decompositions) in &chem.deriv.decompositions {
         let compound = &chem.deriv.compound_lookup[compound_id];
         let header = format!("{}", compound.label);
         ui.collapsing(header, |ui| {
@@ -195,15 +194,16 @@ pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mu
                 ui.strong("Products");
                 ui.end_row();
 
-                ui.horizontal(|ui| {
+                for productset in decompositions {
                     ui.label("->");
-                    for (i, other_id) in decomposition.products.iter().enumerate().rev() {
+                    for (i, other_id) in productset.products.iter().enumerate().rev() {
                         selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
                         if i != 0 {
                             ui.label(" + ");
                         }
                     }
-                });
+                    ui.label(productset.activation_energy.to_string());
+                }
                 ui.end_row();
             });
         });

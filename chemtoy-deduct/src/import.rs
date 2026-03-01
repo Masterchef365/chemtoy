@@ -59,3 +59,9 @@ impl std::fmt::Display for ActivationEnergy {
         writeln!(f, "{} e^(-{}/KT)", self.a, self.e_a)
     }
 }
+
+impl ActivationEnergy {
+    pub fn rate(&self, temperature: f32) -> f32 {
+        self.a * (-self.e_a / temperature / 1.381e-23)
+    }
+}
