@@ -1,6 +1,6 @@
 use crate::{derivations::Derivations, import::ImportFile};
 
-pub use laws::*;
+pub use import::*;
 
 mod import;
 mod laws;

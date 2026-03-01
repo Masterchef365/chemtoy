@@ -11,5 +11,5 @@ python3 /mnt/export.py | tee /mnt/chem.json
 
 Now you can copy the solution out:
 ```
-cp ./kinetics/chem.json .
+cp ./kinetics/chem.json ./src/
 ```

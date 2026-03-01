@@ -1,72 +1,47 @@
 use std::collections::{BTreeMap, HashMap};
 
+use interned_string::IString;
 use serde::{Deserialize, Serialize};
 
 use crate::laws::{Compound, Element, ElementId, Elements, Formula, Laws};
 
+#[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
-pub struct ImportFile {
-    elements: Vec<ImportElement>,
-    compounds: Vec<ImportCompound>,
+pub struct Laws {
+    pub reactions: Vec<ImportReaction>,
+    pub species: Vec<ImportCompound>,
 }
 
+#[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
-struct ImportCompound {
-    name: String,
-    formula: String,
-    delta_g: f32,
-    charge: i32,
-    mass: f32,
-    composition: HashMap<String, usize>,
+pub struct ImportCompound {
+    pub smiles: IString,
+    pub label: IString,
+    pub mass_amu: f32,
+    pub inchi: IString,
 }
 
+#[derive(Debug)]
 #[derive(Serialize, Deserialize, Clone)]
-struct ImportElement {
-    symbol: String,
-    mass: f32,
+pub struct ImportReaction {
+    #[serde(rename = "A")]
+    pub a: f32,
+    #[serde(rename = "n")]
+    pub n: f32,
+    #[serde(rename = "Ea")]
+    pub e_a: f32,
+    // TODO: Use interned strings(!)
+    pub reactants: Vec<IString>,
+    pub products: Vec<IString>,
 }
 
-fn cvt_formula(elements: &[ImportElement], composition: &HashMap<String, usize>) -> Formula {
-    let mut map = BTreeMap::new();
-    for (k, v) in composition {
-        let id = elements.iter().position(|elem| &elem.symbol == k).unwrap();
-        let id = ElementId(id);
-        map.insert(id, *v);
-    }
-    Formula(map)
-}
-
-impl ImportFile {
-    pub fn convert(&self) -> Laws {
-        Laws {
-            elements: crate::laws::Elements(
-                self.elements
-                    .iter()
-                    .cloned()
-                    .map(|elem| elem.into())
-                    .collect(),
-            ),
-            compounds: crate::laws::Compounds(
-                self.compounds
-                    .iter()
-                    .map(|cmpd| Compound {
-                        name: cmpd.name.clone(),
-                        mass: cmpd.mass,
-                        charge: cmpd.charge,
-                        formula: cvt_formula(&self.elements, &cmpd.composition),
-                        std_free_energy: cmpd.delta_g,
-                    })
-                    .collect(),
-            ),
-        }
+impl Laws {
+    pub fn built_in() -> Self {
+        serde_json::from_slice(include_bytes!("chem.json")).unwrap()
     }
 }
 
-impl Into<Element> for ImportElement {
-    fn into(self) -> Element {
-        Element {
-            symbol: self.symbol,
-            mass: self.mass,
-        }
-    }
+#[test]
+fn test_parse_built_in() {
+    Laws::built_in();
 }
