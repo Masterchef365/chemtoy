@@ -525,7 +525,7 @@ impl ChemToyApp {
                 });
 
                 ui.group(|ui| {
-                    particle_stats(ui, &self.sim, &self.chem.laws);
+                    particle_stats(ui, &self.sim, &self.chem.deriv);
                 });
             });
         });
@@ -651,11 +651,11 @@ fn draw_particles(
         );
 
         if vis_cfg.show_names {
-            let compound = &laws.compound_lookup[particle.compound];
+            let compound = &laws.compound_lookup[&particle.compound];
             ui.painter().text(
                 particle.pos,
                 egui::Align2([egui::Align::Center; 2]),
-                &compound.name,
+                &compound.label,
                 Default::default(),
                 Color32::WHITE,
             );
@@ -680,21 +680,21 @@ impl Default for VisualizationConfig {
     }
 }
 
-fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Laws) {
+fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Derivations) {
     let mut counts: HashMap<CompoundId, usize> = Default::default();
     for part in &sim.particles {
-        *counts.entry(part.compound).or_default() += 1;
+        *counts.entry(part.compound.clone()).or_default() += 1;
     }
 
     let total: usize = counts.iter().map(|(_, n)| *n).sum();
 
     let mut sorted: Vec<(CompoundId, usize)> = counts.into_iter().collect();
-    sorted.sort_unstable_by_key(|(c, n)| std::cmp::Reverse((*n, c)));
+    //sorted.sort_unstable_by_key(|(c, n)| std::cmp::Reverse((*n, c)));
 
     egui::Grid::new("stats").show(ui, |ui| {
         for (id, n) in sorted {
             let percent = 100.0 * n as f32 / total as f32;
-            ui.label(RichText::new(&laws.compounds[id].name).color(compound_color(&id)));
+            ui.label(RichText::new(laws.compound_lookup[&id].label.as_ref()).color(compound_color(&id)));
             ui.strong(n.to_string());
             ui.strong(format!("{percent:.02}%"));
             ui.end_row();
