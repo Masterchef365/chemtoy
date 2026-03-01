@@ -123,7 +123,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
     });
 }
 
-fn selectable_cmpd(
+pub fn selectable_cmpd(
     ui: &mut Ui,
     chem: &ChemicalWorld,
     value: CompoundId,

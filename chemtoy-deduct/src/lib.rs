@@ -1,4 +1,4 @@
-use crate::{derivations::Derivations, import::Laws};
+use crate::derivations::Derivations;
 
 pub use import::*;
 use interned_string::IString;
