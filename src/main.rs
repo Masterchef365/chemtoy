@@ -2,7 +2,7 @@ use std::{collections::HashMap, hash::Hasher};
 
 use chemtoy::selectable_cmpd;
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
-use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Laws};
+use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use rand::prelude::Distribution;
 use sim::*;
 
@@ -396,7 +396,7 @@ impl ChemToyApp {
                         if ui.button("Reset").clicked() {
                             self.sim = Sim::new();
                             if self.with_jittered_grid {
-                                jittered_grid(&mut self.sim, &self.sim_cfg, self.draw_compound, self.density);
+                                jittered_grid(&mut self.sim, &self.sim_cfg, &self.draw_compound, self.density);
                             }
                         }
                         ui.checkbox(&mut self.with_jittered_grid, "with particles");
@@ -555,7 +555,7 @@ impl ChemToyApp {
                         rect,
                         &self.sim.particles,
                         &self.sim_cfg,
-                        &self.chem.laws,
+                        &self.chem.deriv,
                         &self.vis_cfg,
                     );
 
@@ -565,7 +565,7 @@ impl ChemToyApp {
                             let pos = interact_pos - rect.min.to_vec2();
                             if self.sim.area_is_clear(&self.sim_cfg, pos) {
                                 self.sim.particles.push(Particle {
-                                    compound: self.draw_compound,
+                                    compound: self.draw_compound.clone(),
                                     pos,
                                     vel: resp.drag_delta(),
                                     is_stationary: self.draw_stationary,
@@ -612,7 +612,7 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: &CompoundId, density:
             pos.y += unif.sample(&mut rng);
 
             sim.particles.push(Particle {
-                compound,
+                compound: compound.clone(),
                 pos,
                 vel: Vec2::ZERO,
                 is_stationary: false,
@@ -638,7 +638,7 @@ fn draw_particles(
     rect: Rect,
     particles: &[Particle],
     cfg: &SimConfig,
-    laws: &Laws,
+    laws: &Derivations,
     vis_cfg: &VisualizationConfig,
 ) {
     for particle in particles {
@@ -651,7 +651,7 @@ fn draw_particles(
         );
 
         if vis_cfg.show_names {
-            let compound = &laws.compounds[particle.compound];
+            let compound = &laws.compound_lookup[particle.compound];
             ui.painter().text(
                 particle.pos,
                 egui::Align2([egui::Align::Center; 2]),
