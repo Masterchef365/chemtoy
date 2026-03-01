@@ -3,17 +3,19 @@ use std::collections::{BTreeMap, HashMap};
 use interned_string::IString;
 use serde::{Deserialize, Serialize};
 
+use crate::CompoundId;
+
 #[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct Laws {
-    pub reactions: Vec<ImportReaction>,
-    pub species: Vec<ImportCompound>,
+    pub reactions: Vec<Reaction>,
+    pub species: Vec<Compound>,
 }
 
 #[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
-pub struct ImportCompound {
-    pub smiles: IString,
+pub struct Compound {
+    pub smiles: CompoundId,
     pub label: IString,
     pub mass_amu: f32,
     pub inchi: IString,
@@ -21,7 +23,7 @@ pub struct ImportCompound {
 
 #[derive(Debug)]
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ImportReaction {
+pub struct Reaction {
     #[serde(flatten)]
     pub energy: ActivationEnergy,
     // TODO: Use interned strings(!)

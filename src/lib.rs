@@ -1,4 +1,4 @@
-use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId};
+use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use egui::Ui;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -25,7 +25,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
         .resizable(true)
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                let cmpd = &chem.laws.compounds[*selected_cmpd];
+                let cmpd = &chem.laws.species.iter().find(|c| c.smiles == selected_cmpd);
                 ui.heading(&cmpd.name);
                 ui.strong("Info");
                 egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {

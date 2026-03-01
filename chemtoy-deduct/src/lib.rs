@@ -1,6 +1,7 @@
 use crate::{derivations::Derivations, import::Laws};
 
 pub use import::*;
+use interned_string::IString;
 
 mod import;
 //mod laws;
@@ -11,6 +12,9 @@ pub struct ChemicalWorld {
     pub laws: Laws,
     pub deriv: Derivations,
 }
+
+/// SMILES
+pub type CompoundId = IString;
 
 impl ChemicalWorld {
     pub fn from_laws(laws: Laws) -> Self {

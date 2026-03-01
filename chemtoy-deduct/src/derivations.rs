@@ -2,9 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use interned_string::IString;
 
-use crate::{ActivationEnergy, Laws};
-
-pub type CompoundId = IString;
+use crate::{ActivationEnergy, Laws, CompoundId};
 
 #[derive(Clone, Debug)]
 pub struct Decomposition {
@@ -16,6 +14,16 @@ pub struct Decomposition {
 pub struct Synthesis {
     pub product: CompoundId,
     pub activation_energy: ActivationEnergy,
+}
+
+#[derive(Clone, Debug)]
+pub struct Derivations {
+    /// For each compound, which other sets of compounds could be formed?
+    pub decompositions: HashMap<CompoundId, Decomposition>,
+    /// Reverse of decompositions, but for combinations of only two compounds.
+    /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
+    /// so that there are no redundant indices.
+    pub synthesis: HashMap<(CompoundId, CompoundId), Synthesis>,
 }
 
 impl Derivations {
@@ -45,14 +53,4 @@ impl Derivations {
             synthesis,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct Derivations {
-    /// For each compound, which other sets of compounds could be formed?
-    pub decompositions: HashMap<CompoundId, Decomposition>,
-    /// Reverse of decompositions, but for combinations of only two compounds.
-    /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
-    /// so that there are no redundant indices.
-    pub synthesis: HashMap<(CompoundId, CompoundId), Synthesis>,
 }
