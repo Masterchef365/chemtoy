@@ -12,7 +12,7 @@ for s in species:
         "smiles": s.smiles, 
         "label": s.label, 
         "charge": s.get_net_charge(), 
-        "mass_amu": s.molecular_weight.value_si, 
+        "mass_kg": s.molecular_weight.value_si, 
         "inchi": s.inchi
     })
 
