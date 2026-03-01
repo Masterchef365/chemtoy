@@ -1,4 +1,4 @@
-use chemtoy_deduct::{ChemicalWorld, CompoundId};
+use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId};
 use egui::Ui;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
@@ -25,31 +25,21 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
         .resizable(true)
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
-                let cmpd = &chem.laws.species.iter().find(|c| c.smiles == selected_cmpd);
-                ui.heading(&cmpd.name);
+                let cmpd = &chem.laws.species.iter().find(|c| &c.smiles.as_ref() == &selected_cmpd.as_ref()).unwrap();
+                ui.heading(cmpd.label.as_ref());
                 ui.strong("Info");
                 egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
-                    let Compound {
-                        name,
-                        formula,
-                        charge,
-                        std_free_energy,
-                        mass,
-                    } = cmpd;
-                    ui.strong("Formula: ");
-                    ui.label(formula.display(&chem.laws.elements));
+                    let Compound { smiles, label, mass_amu, inchi } = cmpd;
+                    ui.strong("SMILES: ");
+                    ui.label(smiles.as_ref());
                     ui.end_row();
 
-                    ui.strong("Charge: ");
-                    ui.label(charge.to_string());
+                    ui.strong("InChi: ");
+                    ui.label(inchi.as_ref());
                     ui.end_row();
 
-                    ui.strong("Free energy: ");
-                    ui.label(std_free_energy.to_string());
-                    ui.end_row();
-
-                    ui.strong("Mass: ");
-                    ui.label(mass.to_string());
+                    ui.strong("Mass (amu): ");
+                    ui.label(mass_amu.to_string());
                     ui.end_row();
                 });
                 ui.separator();

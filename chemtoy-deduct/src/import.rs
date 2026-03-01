@@ -19,6 +19,7 @@ pub struct Compound {
     pub label: IString,
     pub mass_amu: f32,
     pub inchi: IString,
+    pub charge: f32,
 }
 
 #[derive(Debug)]

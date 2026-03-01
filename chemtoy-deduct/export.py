@@ -8,10 +8,10 @@ species, reactions = load_chemkin_file(
 
 species_json = []
 for s in species:
-    #print(s.label, s.molecular_weight)
     species_json.append({
         "smiles": s.smiles, 
         "label": s.label, 
+        "charge": s.get_net_charge(), 
         "mass_amu": s.molecular_weight.value_si, 
         "inchi": s.inchi
     })
