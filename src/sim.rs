@@ -477,30 +477,27 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
 
     let productsets = &chem.deriv.decompositions[&particles[i].compound];
     let mut rng = rand::thread_rng();
-    let productset = productsets.products.iter().filter(|x| x.count() == 2).choose(&mut rng)?;
-    let mut compounds = productset.compounds.keys().copied();
-    let product_a = compounds.next().unwrap();
-    let product_b = compounds.next().unwrap_or(product_a);
+    let productset = productsets.choose(&mut rng)?;
+    let compounds = &productset.products;
+    let product_a = compounds.get(0)?;
+    let product_b = compounds.get(1)?;
 
-    let cmpd_a = &chem.laws.compounds[product_a];
-    let cmpd_b = &chem.laws.compounds[product_a];
-
-    let dg = cmpd_a.std_free_energy + cmpd_b.std_free_energy - cmpd_i.std_free_energy;
+    let dg = productset.activation_energy.rate(cfg.temperature);
 
     let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
     if rand::thread_rng().gen_bool(1f64 - p as f64) {
         return None;
     }
 
-    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass, particles[i].vel, cmpd_j.mass, particles[j].vel);
+    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass_amu, particles[i].vel, cmpd_j.mass_amu, particles[j].vel);
     particles[j].vel = vel_j;
     particles[i].vel = vel_i;
 
-    particles[i].compound = product_a;
+    particles[i].compound = product_a.clone();
 
     let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
     let pos2 = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 4.0;
     particles[j].pos = pos2;
 
-    Some(Particle { compound: product_b, pos, vel: Vec2::ZERO, is_stationary: false })
+    Some(Particle { compound: product_b.clone(), pos, vel: Vec2::ZERO, is_stationary: false })
 }
