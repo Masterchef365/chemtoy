@@ -53,3 +53,9 @@ impl Laws {
 fn test_parse_built_in() {
     Laws::built_in();
 }
+
+impl std::fmt::Display for ActivationEnergy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} e^(-{}/KT)", self.a, self.e_a)
+    }
+}

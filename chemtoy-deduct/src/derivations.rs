@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use interned_string::IString;
-
-use crate::{ActivationEnergy, Laws, CompoundId};
+use crate::{ActivationEnergy, Compound, CompoundId, Laws};
 
 #[derive(Clone, Debug)]
 pub struct Decomposition {
@@ -24,12 +22,14 @@ pub struct Derivations {
     /// If the compounds are (A, B), then the ID of A must be less than or equal to the ID of B. This makes it
     /// so that there are no redundant indices.
     pub synthesis: HashMap<(CompoundId, CompoundId), Synthesis>,
+    pub compound_lookup: HashMap<CompoundId, Compound>,
 }
 
 impl Derivations {
     pub fn from_laws(laws: &Laws) -> Self {
         let mut synthesis = HashMap::new();
         let mut decompositions = HashMap::new();
+
         for rxn in &laws.reactions {
             if rxn.reactants.len() == 2 && rxn.products.len() == 1 {
                 let a = rxn.reactants[0].clone();
@@ -46,11 +46,15 @@ impl Derivations {
             }
         }
 
-
+        let mut compound_lookup = HashMap::new();
+        for s in &laws.species {
+            compound_lookup.insert(s.smiles.clone(), s.clone());
+        }
 
         Self {
             decompositions,
             synthesis,
+            compound_lookup,
         }
     }
 }
