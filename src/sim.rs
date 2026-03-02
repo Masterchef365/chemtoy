@@ -1,12 +1,12 @@
 use std::cmp::Reverse;
 use std::ops::Neg;
 
-use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use crate::query_accel::QueryAccelerator;
+use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use egui::{Pos2, Vec2};
+use rand::Rng;
 use rand::prelude::Distribution;
 use rand::seq::{IteratorRandom, SliceRandom};
-use rand::Rng;
 
 pub struct Sim {
     pub particles: Vec<Particle>,
@@ -70,7 +70,8 @@ impl Sim {
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
         let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(&points, cfg.max_interaction_dist.max(cfg.particle_radius));
+        let accel =
+            QueryAccelerator::new(&points, cfg.max_interaction_dist.max(cfg.particle_radius));
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt);
 
@@ -83,7 +84,17 @@ impl Sim {
             // Inter-particle forces
             let mut k = None;
             for j in accel.query_neighbors(&points, i, points[i]) {
-                interact(&mut self.particles, i, j, k, cfg, chem, &mut new_particles, &mut removed_particles, &mut changed);
+                interact(
+                    &mut self.particles,
+                    i,
+                    j,
+                    k,
+                    cfg,
+                    chem,
+                    &mut new_particles,
+                    &mut removed_particles,
+                    &mut changed,
+                );
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
             }
@@ -175,12 +186,23 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
                 }
             }
 
-            part.pos[i] = part.pos[i].clamp(cfg.particle_radius, cfg.dimensions[i] - cfg.particle_radius);
+            part.pos[i] =
+                part.pos[i].clamp(cfg.particle_radius, cfg.dimensions[i] - cfg.particle_radius);
         }
     }
 }
 
-fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cfg: &SimConfig, chem: &ChemicalWorld, add_list: &mut Vec<Particle>, remove_list: &mut Vec<usize>, changed: &mut [bool]) -> Option<Particle> {
+fn interact(
+    particles: &mut [Particle],
+    i: usize,
+    j: usize,
+    k: Option<usize>,
+    cfg: &SimConfig,
+    chem: &ChemicalWorld,
+    add_list: &mut Vec<Particle>,
+    remove_list: &mut Vec<usize>,
+    changed: &mut [bool],
+) -> Option<Particle> {
     // Medium-range interactions
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
@@ -231,13 +253,18 @@ fn interact(particles: &mut [Particle], i: usize, j: usize, k: Option<usize>, cf
         // Scattering
         if particles[i].is_stationary && !particles[j].is_stationary {
             let v = reflect(particles[j].vel, diff.normalized());
-            particles[j].vel = v; 
+            particles[j].vel = v;
         }
 
         if !particles[i].is_stationary && !particles[j].is_stationary {
-            let (vi, vj) = elastic_collision_vect(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
-            particles[i].vel = vi; 
-            particles[j].vel = vj; 
+            let (vi, vj) = elastic_collision_vect(
+                cmpd_i.mass_kg,
+                particles[i].vel,
+                cmpd_j.mass_kg,
+                particles[j].vel,
+            );
+            particles[i].vel = vi;
+            particles[j].vel = vj;
         }
     }
 
@@ -255,21 +282,35 @@ fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
 /// Returns true if the particle at index `i` should be deleted.
 /// Particle j will become the product
 /// Particle k will receive any excess kinetic energy
-fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> bool {
+fn react(
+    particles: &mut [Particle],
+    i: usize,
+    j: usize,
+    k: usize,
+    cfg: &SimConfig,
+    chem: &ChemicalWorld,
+) -> bool {
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
     let cmpd_k = &chem.deriv.compound_lookup[&particles[k].compound];
 
     /*
-    let total_ke_init = 
+    let total_ke_init =
         kinetic_energy(particles[i].vel, cmpd_i.mass)
         + kinetic_energy(particles[k].vel, cmpd_k.mass)
         + kinetic_energy(particles[j].vel, cmpd_j.mass);
     */
 
-    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_kg) + kinetic_energy(particles[j].vel, cmpd_j.mass_kg);
+    let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_kg)
+        + kinetic_energy(particles[j].vel, cmpd_j.mass_kg);
 
-    let Some(product) = chem.deriv.synthesis.get(&(particles[i].compound.clone(), particles[j].compound.clone())) else { return false; };
+    let Some(product) = chem
+        .deriv
+        .synthesis
+        .get(&(particles[i].compound.clone(), particles[j].compound.clone()))
+    else {
+        return false;
+    };
     let new_cmpd_j = &chem.deriv.compound_lookup[&product.product];
 
     let dg = product.activation_energy;
@@ -280,7 +321,12 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
         return false;
     }
 
-    particles[j].vel = inelastic_collision(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
+    particles[j].vel = inelastic_collision(
+        cmpd_i.mass_kg,
+        particles[i].vel,
+        cmpd_j.mass_kg,
+        particles[j].vel,
+    );
     particles[j].compound = product.product.clone();
 
     let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_kg);
@@ -293,24 +339,30 @@ fn react(particles: &mut [Particle], i: usize, j: usize, k: usize, cfg: &SimConf
         return false;
     }
 
-    let e = ((de + ke_k)/ke_k).sqrt();
+    let e = ((de + ke_k) / ke_k).sqrt();
 
     particles[k].vel *= e;
 
     /*
-    let total_ke_end = 
+    let total_ke_end =
         kinetic_energy(particles[k].vel, cmpd_k.mass)
         + kinetic_energy(particles[j].vel, new_cmpd_j.mass);
     */
 
     //dbg!(total_ke_end - total_ke_init);
-    
+
     true
 }
 
 // Product i will be decomposed into particles a and b. It will be replaced with particle a, and
 // Some(b) will be returned.
-fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<Particle> {
+fn decompose(
+    particles: &mut [Particle],
+    i: usize,
+    j: usize,
+    cfg: &SimConfig,
+    chem: &ChemicalWorld,
+) -> Option<Particle> {
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
 
@@ -329,7 +381,12 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
         return None;
     }
 
-    let (vel_i, vel_j) = elastic_collision_vect(cmpd_i.mass_kg, particles[i].vel, cmpd_j.mass_kg, particles[j].vel);
+    let (vel_i, vel_j) = elastic_collision_vect(
+        cmpd_i.mass_kg,
+        particles[i].vel,
+        cmpd_j.mass_kg,
+        particles[j].vel,
+    );
     particles[j].vel = vel_j;
     particles[i].vel = vel_i;
 
@@ -339,5 +396,10 @@ fn decompose(particles: &mut [Particle], i: usize, j: usize, cfg: &SimConfig, ch
     let pos2 = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 4.0;
     particles[j].pos = pos2;
 
-    Some(Particle { compound: product_b.clone(), pos, vel: Vec2::ZERO, is_stationary: false })
+    Some(Particle {
+        compound: product_b.clone(),
+        pos,
+        vel: Vec2::ZERO,
+        is_stationary: false,
+    })
 }

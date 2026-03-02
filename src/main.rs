@@ -1,8 +1,8 @@
 use std::{collections::HashMap, hash::Hasher};
 
 use chemtoy::selectable_cmpd;
-use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
+use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use rand::prelude::Distribution;
 use sim::*;
 
@@ -378,14 +378,16 @@ impl ChemToyApp {
                             "",
                             //&self.chem.laws.compounds[self.draw_compound].name,
                         )
-                        .show_ui(
-                            ui,
-                            |ui| {
-                                for cmpd in self.chem.deriv.compound_lookup.keys() {
-                                    selectable_cmpd(ui, &self.chem, cmpd.clone(), &mut self.draw_compound);
-                                }
+                        .show_ui(ui, |ui| {
+                            for cmpd in self.chem.deriv.compound_lookup.keys() {
+                                selectable_cmpd(
+                                    ui,
+                                    &self.chem,
+                                    cmpd.clone(),
+                                    &mut self.draw_compound,
+                                );
                             }
-                        );
+                        });
                     });
                     ui.checkbox(&mut self.draw_stationary, "Stationary");
                 });
@@ -396,11 +398,19 @@ impl ChemToyApp {
                         if ui.button("Reset").clicked() {
                             self.sim = Sim::new();
                             if self.with_jittered_grid {
-                                jittered_grid(&mut self.sim, &self.sim_cfg, &self.draw_compound, self.density);
+                                jittered_grid(
+                                    &mut self.sim,
+                                    &self.sim_cfg,
+                                    &self.draw_compound,
+                                    self.density,
+                                );
                             }
                         }
                         ui.checkbox(&mut self.with_jittered_grid, "with particles");
-                        ui.add_enabled(self.with_jittered_grid, DragValue::new(&mut self.density).prefix("Init density: "));
+                        ui.add_enabled(
+                            self.with_jittered_grid,
+                            DragValue::new(&mut self.density).prefix("Init density: "),
+                        );
                     });
 
                     ui.horizontal(|ui| {
@@ -458,7 +468,6 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.max_interaction_dist).speed(1e-2));
                     });
 
-
                     /*
                     ui.horizontal(|ui| {
                         ui.label("Morse radius: ");
@@ -508,7 +517,6 @@ impl ChemToyApp {
                     ui.label(format!("Kinetic energy energy: {kinetic_energy:.02}"));
                     ui.label(format!("Total energy: {total_energy}"));
                     */
-
                 });
 
                 ui.group(|ui| {
@@ -517,11 +525,7 @@ impl ChemToyApp {
                         &mut self.vis_cfg.show_velocity_vector,
                         "Show Velocity Vector",
                     );
-                    ui.checkbox(
-                        &mut self.vis_cfg.show_names,
-                        "Show Names",
-                    );
-
+                    ui.checkbox(&mut self.vis_cfg.show_names, "Show Names");
                 });
 
                 ui.group(|ui| {
@@ -694,7 +698,9 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Derivations) {
     egui::Grid::new("stats").show(ui, |ui| {
         for (id, n) in sorted {
             let percent = 100.0 * n as f32 / total as f32;
-            ui.label(RichText::new(laws.compound_lookup[&id].label.as_ref()).color(compound_color(&id)));
+            ui.label(
+                RichText::new(laws.compound_lookup[&id].label.as_ref()).color(compound_color(&id)),
+            );
             ui.strong(n.to_string());
             ui.strong(format!("{percent:.02}%"));
             ui.end_row();
