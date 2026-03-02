@@ -309,14 +309,6 @@ fn react(
     let new_cmpd_j = &chem.deriv.compound_lookup[&product_j];
     let new_cmpd_i = product_i.map(|i| &chem.deriv.compound_lookup[i]);
 
-    let dg = products.activation_energy;
-
-    let p = dg.rate(cfg.temperature).clamp(0.0, 1.0);
-    let p = 1.0;
-    if rand::thread_rng().gen_bool(1f64 - p as f64) {
-        return false;
-    }
-
     particles[j].vel = inelastic_collision(
         cmpd_i.mass_kg,
         particles[i].vel,
@@ -375,14 +367,6 @@ fn decompose(
     let compounds = &productset.products;
     let product_a = compounds.get(0)?;
     let product_b = compounds.get(1)?;
-
-    let dg = productset.activation_energy.rate(cfg.temperature);
-
-    let p = (dg / cfg.temperature).neg().exp().clamp(0.0, 1.0);
-    let p = 1.0;
-    if rand::thread_rng().gen_bool(1f64 - p as f64) {
-        return None;
-    }
 
     let (vel_i, vel_j) = elastic_collision_vect(
         cmpd_i.mass_kg,
