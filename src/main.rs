@@ -378,6 +378,7 @@ impl ChemToyApp {
                             "",
                             //&self.chem.laws.compounds[self.draw_compound].name,
                         )
+                        .selected_text(self.draw_compound.as_ref())
                         .show_ui(ui, |ui| {
                             for cmpd in self.chem.deriv.compound_lookup.keys() {
                                 selectable_cmpd(

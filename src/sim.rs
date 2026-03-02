@@ -296,6 +296,12 @@ fn react(
         return false;
     };
 
+    let e_a = products.activation_energy.e_a * cfg.si_to_sim_units_energy();
+    // TODO: naive.
+    if ke_init < e_a {
+        return false;
+    }
+
     let mut product_iter = products.products.iter();
     let product_j = product_iter.next().unwrap();
     let product_i = product_iter.next();
