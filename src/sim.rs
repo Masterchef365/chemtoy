@@ -4,9 +4,9 @@ use std::ops::Neg;
 use crate::query_accel::QueryAccelerator;
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use egui::{Pos2, Vec2};
-use rand::Rng;
 use rand::prelude::Distribution;
 use rand::seq::{IteratorRandom, SliceRandom};
+use rand::Rng;
 
 pub struct Sim {
     pub particles: Vec<Particle>,
@@ -37,7 +37,7 @@ pub struct SimConfig {
     pub max_interaction_dist: f32,
     pub vanderwaals_mag: f32,
 
-    /// How many real world meters correspond to simulation unit 
+    /// How many real world meters correspond to simulation unit
     pub meters_per_unit: f32,
 }
 
@@ -134,27 +134,6 @@ impl Sim {
         self.particles
             .iter()
             .all(|p| p.pos.distance_sq(pos) > thresh_sq)
-    }
-}
-
-impl Default for SimConfig {
-    fn default() -> Self {
-        Self {
-            coulomb_softening: 0.1,
-            dimensions: Vec2::new(500., 500.),
-            dt: 1. / 60.,
-            particle_radius: 5.0,
-            //max_collision_time: 1e-2,
-            fill_timestep: true,
-            gravity: 9.8,
-            speed_limit: 500.0,
-            temperature: 100., // Arbitrary
-            coulomb_k: 1e3,
-            vanderwaals_mag: 1e2,
-            //morse_alpha: 1.0,
-            max_interaction_dist: 15.0,
-            meters_per_unit: 1.0,
-        }
     }
 }
 
@@ -309,16 +288,22 @@ fn react(
     let ke_init = kinetic_energy(particles[i].vel, cmpd_i.mass_kg)
         + kinetic_energy(particles[j].vel, cmpd_j.mass_kg);
 
-    let Some(product) = chem
+    let Some(products) = chem
         .deriv
         .synthesis
         .get(&(particles[i].compound.clone(), particles[j].compound.clone()))
     else {
         return false;
     };
-    let new_cmpd_j = &chem.deriv.compound_lookup[&product.product];
 
-    let dg = product.activation_energy;
+    let mut product_iter = products.products.iter();
+    let product_j = product_iter.next().unwrap();
+    let product_i = product_iter.next();
+
+    let new_cmpd_j = &chem.deriv.compound_lookup[&product_j];
+    let new_cmpd_i = product_i.map(|i| &chem.deriv.compound_lookup[i]);
+
+    let dg = products.activation_energy;
 
     let p = dg.rate(cfg.temperature).clamp(0.0, 1.0);
     let p = 1.0;
@@ -332,11 +317,18 @@ fn react(
         cmpd_j.mass_kg,
         particles[j].vel,
     );
-    particles[j].compound = product.product.clone();
+    particles[j].compound = new_cmpd_j.smiles.clone();
 
-    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_kg);
+    if let Some(i_cmpd) = new_cmpd_i {
+        particles[i].compound = i_cmpd.smiles.clone();
+    }
 
-    let de = ke_init - ke_end;
+    let ke_end = kinetic_energy(particles[j].vel, new_cmpd_j.mass_kg)
+        + new_cmpd_i
+            .map(|cmpd| kinetic_energy(particles[i].vel, cmpd.mass_kg))
+            .unwrap_or(0.0);
+
+    let de = ke_init - ke_end + products.activation_energy.delta_g * cfg.si_to_sim_units_energy();
 
     let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass_kg);
 
@@ -356,7 +348,7 @@ fn react(
 
     //dbg!(total_ke_end - total_ke_init);
 
-    true
+    new_cmpd_i.is_none()
 }
 
 // Product i will be decomposed into particles a and b. It will be replaced with particle a, and
@@ -407,4 +399,32 @@ fn decompose(
         vel: Vec2::ZERO,
         is_stationary: false,
     })
+}
+
+impl SimConfig {
+    /// Multiply kJ/mol to get energy per reaction
+    pub fn si_to_sim_units_energy(&self) -> f32 {
+        self.meters_per_unit.powi(2)
+    }
+}
+
+impl Default for SimConfig {
+    fn default() -> Self {
+        Self {
+            coulomb_softening: 0.1,
+            dimensions: Vec2::new(500., 500.),
+            dt: 1. / 60.,
+            particle_radius: 5.0,
+            //max_collision_time: 1e-2,
+            fill_timestep: true,
+            gravity: 9.8,
+            speed_limit: 500.0,
+            temperature: 100., // Arbitrary
+            coulomb_k: 1e3,
+            vanderwaals_mag: 1e2,
+            //morse_alpha: 1.0,
+            max_interaction_dist: 15.0,
+            meters_per_unit: 1e-6,
+        }
+    }
 }

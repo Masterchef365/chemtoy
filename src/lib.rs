@@ -65,7 +65,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
                         ui.end_row();
 
                         for ((a, b), res) in chem.deriv.synthesis.iter() {
-                            if res.product == *selected_cmpd {
+                            if res.products.iter().find(|p| *p == selected_cmpd).is_some() {
                                 draw_synthesis(ui, a, b, chem, selected_cmpd);
                             }
                         }
@@ -221,7 +221,12 @@ fn draw_synthesis(
     });
     ui.label("->");
     ui.horizontal(|ui| {
-        selectable_cmpd(ui, chem, res.product.clone(), selected_cmpd);
+        let mut products = res.products.iter().cloned();
+        selectable_cmpd(ui, chem, products.next().unwrap(), selected_cmpd);
+        if let Some(other) = products.next() {
+            ui.label("+");
+            selectable_cmpd(ui, chem, other, selected_cmpd);
+        }
     });
     ui.label(res.activation_energy.e_a.to_string());
     ui.label(res.activation_energy.delta_g.to_string());

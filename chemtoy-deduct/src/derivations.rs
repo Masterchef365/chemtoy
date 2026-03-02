@@ -9,8 +9,14 @@ pub struct Decomposition {
 }
 
 #[derive(Clone, Debug)]
+pub enum SynthesisOutputs {
+    Single(CompoundId),
+    Exchange(CompoundId, CompoundId),
+}
+
+#[derive(Clone, Debug)]
 pub struct Synthesis {
-    pub product: CompoundId,
+    pub products: SynthesisOutputs,
     pub activation_energy: ActivationEnergy,
 }
 
@@ -31,14 +37,18 @@ impl Derivations {
         let mut decompositions: HashMap<CompoundId, Vec<Decomposition>> = Default::default();
 
         for rxn in &laws.reactions {
-            if rxn.reactants.len() == 2 && rxn.products.len() == 1 {
+            if rxn.reactants.len() == 2 && rxn.products.len() <= 2 {
                 let a = rxn.reactants[0].clone();
                 let b = rxn.reactants[1].clone();
-                let product = rxn.products[0].clone();
+                let products = match rxn.products.len() {
+                    1 => SynthesisOutputs::Single(rxn.products[0].clone()),
+                    _ => SynthesisOutputs::Exchange(rxn.products[0].clone(), rxn.products[1].clone()),
+                };
+
                 synthesis.insert(
                     (a, b),
                     Synthesis {
-                        product,
+                        products,
                         activation_energy: rxn.energy,
                     },
                 );
@@ -65,5 +75,14 @@ impl Derivations {
             synthesis,
             compound_lookup,
         }
+    }
+}
+
+impl SynthesisOutputs {
+    pub fn iter(&self) -> impl Iterator<Item = &CompoundId> + '_ {
+        match self {
+            Self::Single(id) => [Some(id), None],
+            Self::Exchange(a, b) => [Some(a), Some(b)],
+        }.into_iter().flatten()
     }
 }
