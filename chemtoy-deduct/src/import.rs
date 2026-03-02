@@ -56,12 +56,12 @@ fn test_parse_built_in() {
 
 impl std::fmt::Display for ActivationEnergy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{} e^(-{}/KT)", self.a, self.e_a)
+        writeln!(f, "{} e^({}/KT)", self.a, self.e_a)
     }
 }
 
 impl ActivationEnergy {
-    pub fn rate(&self, temperature: f32) -> f32 {
-        self.a * (-self.e_a / temperature / 1.381e-23)
+    pub fn rate(&self, temperature_kelvin: f32) -> f32 {
+        self.a * (self.e_a / temperature_kelvin / 1.381e-23)
     }
 }

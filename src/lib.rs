@@ -26,7 +26,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
         .show(ctx, |ui| {
             egui::ScrollArea::both().show(ui, |ui| {
                 let cmpd = &chem.deriv.compound_lookup[selected_cmpd];
-                ui.heading(cmpd.label.as_ref());
+                ui.heading(selected_cmpd.as_ref());
                 ui.strong("Info");
                 egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
                     let Compound {
@@ -68,9 +68,9 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
                                     selectable_cmpd(ui, chem, a.clone(), selected_cmpd);
                                     ui.label("+");
                                     selectable_cmpd(ui, chem, b.clone(), selected_cmpd);
+                                    ui.label("->");
                                 });
                                 ui.horizontal(|ui| {
-                                    ui.label("->");
                                     selectable_cmpd(ui, chem, res.product.clone(), selected_cmpd);
                                 });
                                 ui.end_row();
@@ -102,18 +102,12 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
 
                 ui.strong("Decompositions");
                 egui::Grid::new("cmpd_decomp").striped(true).show(ui, |ui| {
-                    if let Some(d) = chem.deriv.decompositions.get(&selected_cmpd) {
-                        for productset in d {
-                            ui.label("->");
-                            for (i, other_id) in productset.products.iter().enumerate().rev() {
-                                selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
-                                if i != 0 {
-                                    ui.label(" + ");
-                                }
-                            }
-                            ui.end_row();
-                        }
-                    }
+                    show_decompositions_for_compound(
+                        ui,
+                        &selected_cmpd.clone(),
+                        chem,
+                        selected_cmpd,
+                    );
                 });
                 ui.separator();
             });
@@ -146,21 +140,25 @@ pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
         ui.strong("Reactants");
         ui.strong("");
         ui.strong("Products");
-        ui.strong("Delta G");
+        ui.strong("Activation energy (kJ/mol)");
+        ui.strong("Rate (k)");
         ui.end_row();
 
         for ((compound_a, compound_b), product) in chem.deriv.synthesis.iter() {
             let res = &chem.deriv.compound_lookup[&product.product];
-            let activation_energy = product.activation_energy;
 
             ui.horizontal(|ui| {
                 selectable_cmpd(ui, chem, compound_a.clone(), selected_cmpd);
                 ui.label("+");
                 selectable_cmpd(ui, chem, compound_b.clone(), selected_cmpd);
             });
+
             ui.label("->");
-            ui.label(res.label.as_ref());
-            ui.label(format!("{} kJ/mol", activation_energy));
+
+            selectable_cmpd(ui, chem, res.smiles.clone(), selected_cmpd);
+
+            ui.label(product.activation_energy.e_a.to_string());
+            ui.label(product.activation_energy.rate(298.0).to_string());
             ui.end_row();
         }
     });
@@ -169,23 +167,17 @@ pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
 pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Compounds");
     egui::Grid::new("compounds")
-        .num_columns(5)
         .striped(true)
         .show(ui, |ui| {
-            ui.strong("Index");
             ui.strong("Name");
             ui.strong("Charge");
-            ui.strong("Std. gibbs free energy");
             ui.strong("Mass");
-            ui.strong("Symbol");
             ui.end_row();
 
             for (_idx, compound) in chem.laws.species.iter().enumerate() {
                 selectable_cmpd(ui, chem, compound.smiles.clone(), selected_cmpd);
-                ui.label(format!("Mass: {}", &compound.charge));
-                //ui.label(format!("{} kJ/mol", &compound.std_free_energy));
+                ui.label(format!("{}", &compound.charge));
                 ui.label(format!("{} kg", &compound.mass_kg));
-                //ui.label(compound.display(&chem.laws.elements));
                 ui.end_row();
             }
         });
@@ -193,27 +185,60 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
 
 pub fn show_decompositions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     ui.heading("Decompositions");
-    for (compound_id, decompositions) in &chem.deriv.decompositions {
-        let compound = &chem.deriv.compound_lookup[compound_id];
-        let header = format!("{}", compound.label);
-        ui.collapsing(header, |ui| {
-            egui::Grid::new("decomp").striped(true).show(ui, |ui| {
-                ui.strong("Activation energy");
-                ui.strong("Products");
-                ui.end_row();
-
-                for productset in decompositions {
+    egui::Grid::new("decomp").striped(true).show(ui, |ui| {
+        ui.strong("Reaction");
+        ui.strong("Activation energy (kJ/mol)");
+        ui.strong("Rate (k)");
+        ui.end_row();
+        for (compound_id, decompositions) in &chem.deriv.decompositions {
+            for productset in decompositions {
+                ui.horizontal(|ui| {
+                    selectable_cmpd(ui, chem, compound_id.clone(), selected_cmpd);
                     ui.label("->");
                     for (i, other_id) in productset.products.iter().enumerate().rev() {
-                        selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
                         if i != 0 {
                             ui.label(" + ");
                         }
+                        selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
                     }
-                    ui.label(productset.activation_energy.to_string());
-                }
+                });
+                ui.label(productset.activation_energy.e_a.to_string());
+                ui.label(productset.activation_energy.rate(298.0).to_string());
                 ui.end_row();
+            }
+        }
+    });
+}
+
+pub fn show_decompositions_for_compound(
+    ui: &mut Ui,
+    id: &CompoundId,
+    chem: &ChemicalWorld,
+    selected_cmpd: &mut CompoundId,
+) {
+    egui::Grid::new("decomp").striped(true).show(ui, |ui| {
+        ui.strong("Products");
+        ui.strong("Activation energy (kJ/mol)");
+        ui.strong("Rate (k)");
+        ui.end_row();
+
+        let Some(decompositions) = chem.deriv.decompositions.get(id) else {
+            return;
+        };
+
+        for productset in decompositions {
+            ui.horizontal(|ui| {
+                ui.label("->");
+                for (i, other_id) in productset.products.iter().enumerate().rev() {
+                    selectable_cmpd(ui, chem, other_id.clone(), selected_cmpd);
+                    if i != 0 {
+                        ui.label(" + ");
+                    }
+                }
             });
-        });
-    }
+            ui.label(productset.activation_energy.e_a.to_string());
+            ui.label(productset.activation_energy.rate(298.0).to_string());
+            ui.end_row();
+        }
+    });
 }
