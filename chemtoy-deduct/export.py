@@ -1,6 +1,8 @@
 from rmgpy.chemkin import load_chemkin_file
 import json
 
+T = 298.0 # Kelvin
+
 species, reactions = load_chemkin_file(
     "/mnt/chemkin/chem.inp",
     "/mnt/chemkin/species_dictionary.txt"
@@ -31,6 +33,7 @@ for rxn in reactions:
         reactions_json.append({
             "reactants": reactants,
             "products": products,
+            "delta_free_energy_volts": rxn.get_free_energy_of_reaction(T),
             "A": A,
             "n": n,
             "Ea": Ea
