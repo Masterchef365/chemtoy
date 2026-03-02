@@ -22,6 +22,7 @@ pub struct Particle {
 
 pub struct SimConfig {
     pub dimensions: Vec2,
+    /// Time step (seconds) per frame
     pub dt: f32,
     pub particle_radius: f32,
     //pub max_collision_time: f32,
@@ -35,6 +36,9 @@ pub struct SimConfig {
     //pub morse_alpha: f32,
     pub max_interaction_dist: f32,
     pub vanderwaals_mag: f32,
+
+    /// How many real world meters correspond to simulation unit 
+    pub meters_per_unit: f32,
 }
 
 impl Sim {
@@ -149,6 +153,7 @@ impl Default for SimConfig {
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
             max_interaction_dist: 15.0,
+            meters_per_unit: 1.0,
         }
     }
 }

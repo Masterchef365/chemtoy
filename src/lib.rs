@@ -201,7 +201,7 @@ fn draw_decompositions(
             }
         });
         ui.label(decomp.activation_energy.e_a.to_string());
-        ui.label(decomp.activation_energy.rate(298.0).to_string());
+        ui.label(decomp.activation_energy.delta_g.to_string());
         ui.end_row();
     }
 }
@@ -224,7 +224,7 @@ fn draw_synthesis(
         selectable_cmpd(ui, chem, res.product.clone(), selected_cmpd);
     });
     ui.label(res.activation_energy.e_a.to_string());
-    ui.label(res.activation_energy.rate(298.0).to_string());
+    ui.label(res.activation_energy.delta_g.to_string());
     ui.end_row();
 }
 
@@ -233,5 +233,5 @@ fn reaction_header(ui: &mut Ui) {
     ui.label(""); // Arrow
     ui.strong("Products");
     ui.strong("Activation energy (kJ/mol)");
-    ui.strong("Rate (k)");
+    ui.strong("Gibbs free energy (kJ/mol)");
 }
