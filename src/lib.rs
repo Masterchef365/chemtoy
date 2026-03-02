@@ -62,6 +62,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
                     .striped(true)
                     .show(ui, |ui| {
                         reaction_header(ui);
+                        ui.end_row();
 
                         for ((a, b), res) in chem.deriv.synthesis.iter() {
                             if res.product == *selected_cmpd {
