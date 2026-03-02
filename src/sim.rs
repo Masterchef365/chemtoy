@@ -297,8 +297,9 @@ fn react(
     };
 
     let e_a = products.activation_energy.e_a * cfg.si_to_sim_units_energy();
-    // TODO: naive.
-    if ke_init < e_a {
+    let ke_rel = (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_sq();
+
+    if ke_rel < e_a {
         return false;
     }
 
