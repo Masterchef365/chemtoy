@@ -41,8 +41,8 @@ pub struct ActivationEnergy {
     pub n: f32,
     #[serde(rename = "Ea")]
     pub e_a: f32,
-    #[serde(rename = "delta_free_energy_volts")]
-    delta_free_energy_volts: f32,
+    #[serde(rename = "delta_g")]
+    pub delta_g: f32,
 }
 
 impl Laws {

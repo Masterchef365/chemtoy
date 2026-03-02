@@ -33,7 +33,7 @@ for rxn in reactions:
         reactions_json.append({
             "reactants": reactants,
             "products": products,
-            "delta_free_energy_volts": rxn.get_free_energy_of_reaction(T),
+            "delta_g": rxn.get_free_energy_of_reaction(T),
             "A": A,
             "n": n,
             "Ea": Ea
