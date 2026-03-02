@@ -481,6 +481,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.coulomb_k).speed(1e-2));
                     });
 
+                    ui.horizontal(|ui| {
+                        ui.label("Meters per unit: ");
+                        ui.add(DragValue::new(&mut self.sim_cfg.meters_per_unit).speed(1e-8));
+                    });
+
+
                     /*
                     ui.horizontal(|ui| {
                         ui.label("Coulomb softening: ");
