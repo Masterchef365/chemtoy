@@ -415,7 +415,7 @@ impl Default for SimConfig {
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
             max_interaction_dist: 15.0,
-            meters_per_unit: 1e-6,
+            meters_per_unit: 1e-13,
         }
     }
 }
