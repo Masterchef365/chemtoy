@@ -482,8 +482,9 @@ impl ChemToyApp {
                     });
 
                     ui.horizontal(|ui| {
-                        ui.label("Meters per unit: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.meters_per_unit).speed(1e-8));
+                        ui.label("Scale = 10^(");
+                        ui.add(DragValue::new(&mut self.sim_cfg.scale_exp).speed(1e-2));
+                        ui.label(")");
                     });
 
 

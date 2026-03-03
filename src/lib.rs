@@ -27,34 +27,7 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
             egui::ScrollArea::both().show(ui, |ui| {
                 let cmpd = &chem.deriv.compound_lookup[selected_cmpd];
                 ui.heading(selected_cmpd.as_ref());
-                egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
-                    let Compound {
-                        smiles,
-                        label,
-                        mass_kg: mass_amu,
-                        inchi,
-                        charge,
-                    } = cmpd;
-                    ui.strong("Label: ");
-                    ui.label(label.as_ref());
-                    ui.end_row();
-
-                    ui.strong("SMILES: ");
-                    ui.label(smiles.as_ref());
-                    ui.end_row();
-
-                    ui.strong("Charge: ");
-                    ui.label(charge.to_string());
-                    ui.end_row();
-
-                    ui.strong("InChi: ");
-                    ui.label(inchi.as_ref());
-                    ui.end_row();
-
-                    ui.strong("Mass (amu): ");
-                    ui.label(mass_amu.to_string());
-                    ui.end_row();
-                });
+                component_ui(ui, cmpd);
                 ui.separator();
 
                 ui.heading("Formation reactions");
@@ -126,9 +99,9 @@ pub fn selectable_cmpd(
     value: CompoundId,
     selected_cmpd: &mut CompoundId,
 ) -> egui::Response {
-    let label = chem.deriv.compound_lookup[&value].smiles.as_ref();
+    let cmpd = &chem.deriv.compound_lookup[&value];
     let color = compound_color(&value);
-    let mut label = egui::RichText::new(label).background_color(color);
+    let mut label = egui::RichText::new(cmpd.label.as_ref()).background_color(color);
 
     if color.intensity() < 0.3 {
         label = label.color(egui::Color32::WHITE);
@@ -137,6 +110,9 @@ pub fn selectable_cmpd(
     }
 
     ui.selectable_value(selected_cmpd, value, label)
+        .on_hover_ui(|ui| {
+            component_ui(ui, cmpd);
+        })
 }
 
 pub fn show_reactions(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
@@ -257,4 +233,35 @@ fn reaction_header(ui: &mut Ui) {
     ui.strong("Products");
     ui.strong("Activation energy (kJ/mol)");
     ui.strong("Gibbs free energy (kJ/mol)");
+}
+
+fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
+    egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
+        let Compound {
+            smiles,
+            label,
+            mass_kg: mass_amu,
+            inchi,
+            charge,
+        } = cmpd;
+        ui.strong("Label: ");
+        ui.label(label.as_ref());
+        ui.end_row();
+
+        ui.strong("SMILES: ");
+        ui.label(smiles.as_ref());
+        ui.end_row();
+
+        ui.strong("Charge: ");
+        ui.label(charge.to_string());
+        ui.end_row();
+
+        ui.strong("InChi: ");
+        ui.label(inchi.as_ref());
+        ui.end_row();
+
+        ui.strong("Mass (amu): ");
+        ui.label(mass_amu.to_string());
+        ui.end_row();
+    }).response
 }

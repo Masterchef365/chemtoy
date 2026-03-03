@@ -37,8 +37,8 @@ pub struct SimConfig {
     pub max_interaction_dist: f32,
     pub vanderwaals_mag: f32,
 
-    /// How many real world meters correspond to simulation unit
-    pub meters_per_unit: f32,
+    /// Scale exponent; meters_per_unit = 10^{-scale_exp}
+    pub scale_exp: f32,
 }
 
 impl Sim {
@@ -393,9 +393,14 @@ fn decompose(
 }
 
 impl SimConfig {
+    /// Meters per in-simulation unit
+    pub fn meters_per_unit(&self) -> f32 {
+        10_f32.powf(self.scale_exp)
+    }
+
     /// Multiply kJ/mol to get energy per reaction
     pub fn si_to_sim_units_energy(&self) -> f32 {
-        self.meters_per_unit.powi(2)
+        self.meters_per_unit().powi(2)
     }
 }
 
@@ -415,7 +420,7 @@ impl Default for SimConfig {
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
             max_interaction_dist: 15.0,
-            meters_per_unit: 1e-13,
+            scale_exp: -13.0,
         }
     }
 }
