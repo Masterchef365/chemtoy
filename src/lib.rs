@@ -111,6 +111,15 @@ pub fn update_chembook(ctx: &egui::Context, chem: &ChemicalWorld, selected_cmpd:
     });
 }
 
+use std::hash::Hasher;
+
+pub fn compound_color(compound: &CompoundId) -> egui::Color32 {
+    let mut hash = std::hash::DefaultHasher::new();
+    hash.write(compound.as_bytes());
+    let bytes = hash.finish().to_le_bytes();
+    egui::Color32::from_rgb(bytes[0], bytes[1], bytes[2])
+}
+
 pub fn selectable_cmpd(
     ui: &mut Ui,
     chem: &ChemicalWorld,
@@ -118,6 +127,15 @@ pub fn selectable_cmpd(
     selected_cmpd: &mut CompoundId,
 ) -> egui::Response {
     let label = chem.deriv.compound_lookup[&value].smiles.as_ref();
+    let color = compound_color(&value);
+    let mut label = egui::RichText::new(label).background_color(color);
+
+    if color.intensity() < 0.3 {
+        label = label.color(egui::Color32::WHITE);
+    } else {
+        label = label.color(egui::Color32::BLACK);
+    }
+
     ui.selectable_value(selected_cmpd, value, label)
 }
 

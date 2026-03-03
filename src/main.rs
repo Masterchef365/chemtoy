@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hasher};
 
-use chemtoy::selectable_cmpd;
+use chemtoy::{compound_color, selectable_cmpd};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use rand::prelude::Distribution;
@@ -84,7 +84,7 @@ pub struct ChemToyApp {
     sim: Sim,
     sim_cfg: SimConfig,
     scene_rect: Rect,
-    draw_compound: CompoundId,
+    selected_compound: CompoundId,
     draw_stationary: bool,
     paused: bool,
     slowdown: usize,
@@ -313,7 +313,7 @@ impl ChemToyApp {
             draw_stationary: false,
             slowdown: 1,
             frame_count: 0,
-            draw_compound,
+            selected_compound: draw_compound,
             chem,
             sim,
             sim_cfg: cfg,
@@ -378,14 +378,14 @@ impl ChemToyApp {
                             "",
                             //&self.chem.laws.compounds[self.draw_compound].name,
                         )
-                        .selected_text(self.draw_compound.as_ref())
+                        .selected_text(self.selected_compound.as_ref())
                         .show_ui(ui, |ui| {
                             for cmpd in self.chem.deriv.compound_lookup.keys() {
                                 selectable_cmpd(
                                     ui,
                                     &self.chem,
                                     cmpd.clone(),
-                                    &mut self.draw_compound,
+                                    &mut self.selected_compound,
                                 );
                             }
                         });
@@ -402,7 +402,7 @@ impl ChemToyApp {
                                 jittered_grid(
                                     &mut self.sim,
                                     &self.sim_cfg,
-                                    &self.draw_compound,
+                                    &self.selected_compound,
                                     self.density,
                                 );
                             }
@@ -536,7 +536,7 @@ impl ChemToyApp {
                 });
 
                 ui.group(|ui| {
-                    particle_stats(ui, &self.sim, &self.chem.deriv);
+                    particle_stats(ui, &self.sim, &self.chem, &mut self.selected_compound);
                 });
             });
         });
@@ -576,7 +576,7 @@ impl ChemToyApp {
                             let pos = interact_pos - rect.min.to_vec2();
                             if self.sim.area_is_clear(&self.sim_cfg, pos) {
                                 self.sim.particles.push(Particle {
-                                    compound: self.draw_compound.clone(),
+                                    compound: self.selected_compound.clone(),
                                     pos,
                                     vel: resp.drag_delta(),
                                     is_stationary: self.draw_stationary,
@@ -597,7 +597,7 @@ impl ChemToyApp {
     }
 
     fn update_chembook(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        chemtoy::update_chembook(ctx, &self.chem, &mut self.draw_compound)
+        chemtoy::update_chembook(ctx, &self.chem, &mut self.selected_compound)
     }
 }
 
@@ -635,13 +635,6 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: &CompoundId, density:
 struct VisualizationConfig {
     show_velocity_vector: bool,
     show_names: bool,
-}
-
-fn compound_color(compound: &CompoundId) -> Color32 {
-    let mut hash = std::hash::DefaultHasher::new();
-    hash.write(compound.as_bytes());
-    let bytes = hash.finish().to_le_bytes();
-    Color32::from_rgb(bytes[0], bytes[1], bytes[2])
 }
 
 fn draw_particles(
@@ -691,7 +684,7 @@ impl Default for VisualizationConfig {
     }
 }
 
-fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Derivations) {
+fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &mut CompoundId) {
     let mut counts: HashMap<CompoundId, usize> = Default::default();
     for part in &sim.particles {
         *counts.entry(part.compound.clone()).or_default() += 1;
@@ -705,9 +698,11 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, laws: &Derivations) {
     egui::Grid::new("stats").show(ui, |ui| {
         for (id, n) in sorted {
             let percent = 100.0 * n as f32 / total as f32;
-            ui.label(
+            /*ui.label(
                 RichText::new(laws.compound_lookup[&id].label.as_ref()).color(compound_color(&id)),
             );
+            */
+            selectable_cmpd(ui, chem, id, selected_cmpd);
             ui.strong(n.to_string());
             ui.strong(format!("{percent:.02}%"));
             ui.end_row();
