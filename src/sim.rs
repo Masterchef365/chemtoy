@@ -12,6 +12,9 @@ pub struct Sim {
     pub particles: Vec<Particle>,
 }
 
+// kJ/K
+pub const BOLTZMANN: f64 = 1.381e-23;
+
 #[derive(Clone)]
 pub struct Particle {
     pub compound: CompoundId,
@@ -296,10 +299,10 @@ fn react(
         return false;
     };
 
-    let e_a = products.activation_energy.e_a * cfg.si_to_sim_units_energy();
+    let e_a = products.activation_energy.e_a * cfg.si_per_sim_units_energy();
     let ke_rel = (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_sq();
 
-    if ke_rel < e_a {
+    if ke_rel * cfg.si_per_sim_units_energy() < e_a {
         return false;
     }
 
@@ -327,7 +330,7 @@ fn react(
             .map(|cmpd| kinetic_energy(particles[i].vel, cmpd.mass_kg))
             .unwrap_or(0.0);
 
-    let de = ke_init - ke_end + products.activation_energy.delta_g * cfg.si_to_sim_units_energy();
+    let de = ke_init - ke_end + products.activation_energy.delta_g * cfg.si_per_sim_units_energy();
 
     let ke_k = kinetic_energy(particles[k].vel, cmpd_k.mass_kg);
 
@@ -398,8 +401,8 @@ impl SimConfig {
         10_f32.powf(self.scale_exp)
     }
 
-    /// Multiply kJ/mol to get energy per reaction
-    pub fn si_to_sim_units_energy(&self) -> f32 {
+    /// Multiply by sim energy units to get energy per reaction in Joules
+    pub fn si_per_sim_units_energy(&self) -> f32 {
         self.meters_per_unit().powi(2)
     }
 }

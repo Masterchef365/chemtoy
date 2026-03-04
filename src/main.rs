@@ -537,8 +537,14 @@ impl ChemToyApp {
                 });
 
                 ui.group(|ui| {
+                    ui.heading("Particles");
                     particle_stats(ui, &self.sim, &self.chem, &mut self.selected_compound);
                 });
+
+                ui.group(|ui| {
+                    ui.heading("Macroscopic");
+                    ui.label(format!("{:.02} K", calc_temperature(&self.sim, &self.chem, &self.sim_cfg)));
+                })
             });
         });
 
@@ -709,4 +715,23 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
             ui.end_row();
         }
     });
+}
+
+fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
+    if sim.particles.is_empty() {
+        return 0.0;
+    }
+
+    let mut accum: f64 = 0.0;
+    for particle in sim.particles.iter() {
+        let mass = chem.deriv.compound_lookup[&particle.compound].mass_kg;
+        let ke_joules = (particle.vel.length_sq() * mass) as f64 / 2.0;
+        let ke_joules = ke_joules * cfg.si_per_sim_units_energy() as f64;
+        accum += ke_joules as f64;
+    }
+
+    let avg_ke = accum / sim.particles.len() as f64;
+
+    dbg!(avg_ke);
+    (avg_ke / BOLTZMANN) as f32
 }
