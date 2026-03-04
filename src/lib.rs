@@ -249,7 +249,7 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
             let Compound {
                 smiles,
                 label,
-                mass_kg: mass_amu,
+                mass_kg,
                 inchi,
                 charge,
             } = cmpd;
@@ -269,8 +269,8 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
             ui.label(inchi.as_ref());
             ui.end_row();
 
-            ui.strong("Mass (amu): ");
-            ui.label(mass_amu.to_string());
+            ui.strong("Mass (kg): ");
+            ui.label(mass_kg.to_string());
             ui.end_row();
         })
         .response
