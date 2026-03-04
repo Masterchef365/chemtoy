@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hasher};
 
-use chemtoy::{compound_color, selectable_cmpd};
+use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use rand::prelude::Distribution;
@@ -378,7 +378,7 @@ impl ChemToyApp {
                             "",
                             //&self.chem.laws.compounds[self.draw_compound].name,
                         )
-                        .selected_text(self.selected_compound.as_ref())
+                        .selected_text(cmpd_label(&self.chem, &self.selected_compound))
                         .show_ui(ui, |ui| {
                             for cmpd in self.chem.deriv.compound_lookup.keys() {
                                 selectable_cmpd(

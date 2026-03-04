@@ -1,5 +1,5 @@
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Decomposition};
-use egui::Ui;
+use egui::{RichText, Ui};
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
@@ -93,12 +93,7 @@ pub fn compound_color(compound: &CompoundId) -> egui::Color32 {
     egui::Color32::from_rgb(bytes[0], bytes[1], bytes[2])
 }
 
-pub fn selectable_cmpd(
-    ui: &mut Ui,
-    chem: &ChemicalWorld,
-    value: CompoundId,
-    selected_cmpd: &mut CompoundId,
-) -> egui::Response {
+pub fn cmpd_label(chem: &ChemicalWorld, value: &CompoundId) -> RichText {
     let cmpd = &chem.deriv.compound_lookup[&value];
     let color = compound_color(&value);
     let mut label = egui::RichText::new(cmpd.label.as_ref()).background_color(color);
@@ -109,8 +104,20 @@ pub fn selectable_cmpd(
         label = label.color(egui::Color32::BLACK);
     }
 
-    ui.selectable_value(selected_cmpd, value, label)
+    label
+}
+
+pub fn selectable_cmpd(
+    ui: &mut Ui,
+    chem: &ChemicalWorld,
+    value: CompoundId,
+    selected_cmpd: &mut CompoundId,
+) -> egui::Response {
+    let label = cmpd_label(chem, &value);
+
+    ui.selectable_value(selected_cmpd, value.clone(), label)
         .on_hover_ui(|ui| {
+            let cmpd = &chem.deriv.compound_lookup[&value];
             component_ui(ui, cmpd);
         })
 }
@@ -236,32 +243,35 @@ fn reaction_header(ui: &mut Ui) {
 }
 
 fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
-    egui::Grid::new("cmpd_info").striped(true).show(ui, |ui| {
-        let Compound {
-            smiles,
-            label,
-            mass_kg: mass_amu,
-            inchi,
-            charge,
-        } = cmpd;
-        ui.strong("Label: ");
-        ui.label(label.as_ref());
-        ui.end_row();
+    egui::Grid::new("cmpd_info")
+        .striped(true)
+        .show(ui, |ui| {
+            let Compound {
+                smiles,
+                label,
+                mass_kg: mass_amu,
+                inchi,
+                charge,
+            } = cmpd;
+            ui.strong("Label: ");
+            ui.label(label.as_ref());
+            ui.end_row();
 
-        ui.strong("SMILES: ");
-        ui.label(smiles.as_ref());
-        ui.end_row();
+            ui.strong("SMILES: ");
+            ui.label(smiles.as_ref());
+            ui.end_row();
 
-        ui.strong("Charge: ");
-        ui.label(charge.to_string());
-        ui.end_row();
+            ui.strong("Charge: ");
+            ui.label(charge.to_string());
+            ui.end_row();
 
-        ui.strong("InChi: ");
-        ui.label(inchi.as_ref());
-        ui.end_row();
+            ui.strong("InChi: ");
+            ui.label(inchi.as_ref());
+            ui.end_row();
 
-        ui.strong("Mass (amu): ");
-        ui.label(mass_amu.to_string());
-        ui.end_row();
-    }).response
+            ui.strong("Mass (amu): ");
+            ui.label(mass_amu.to_string());
+            ui.end_row();
+        })
+        .response
 }
