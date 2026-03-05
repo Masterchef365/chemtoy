@@ -263,7 +263,7 @@ fn inelastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> Vec2 {
 }
 
 fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
-    vel.length_sq() * mass * 0.5
+    vel.length_squared() * mass * 0.5
 }
 
 /// Returns true if the particle at index `i` should be deleted.
@@ -301,7 +301,7 @@ fn react(
 
     let e_a = products.activation_energy.e_a * cfg.si_per_sim_units_energy();
     let ke_rel =
-        (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_sq();
+        (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_squared();
 
     if ke_rel * cfg.si_per_sim_units_energy() < e_a {
         return false;
