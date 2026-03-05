@@ -416,7 +416,7 @@ impl Default for SimConfig {
     fn default() -> Self {
         Self {
             coulomb_softening: 0.1,
-            dimensions: Vec2::new(500., 500.),
+            dimensions: Vec2::new(500., 500.) * 1e-12,
             dt: 1. / 60.,
             //max_collision_time: 1e-2,
             fill_timestep: true,

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hasher};
 
-use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
+use chemtoy::{cmpd_label, compound_color, selectable_cmpd, to_metric_prefix};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use rand::prelude::Distribution;
@@ -429,6 +429,7 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.dimensions.x));
                         ui.label("x");
                         ui.add(DragValue::new(&mut self.sim_cfg.dimensions.y));
+                        ui.label("m");
                     });
                     /*ui.horizontal(|ui| {
                         ui.label("Max collision time: ");
@@ -482,6 +483,8 @@ impl ChemToyApp {
                         ui.label("Scale = 10^(");
                         ui.add(DragValue::new(&mut self.sim_cfg.scale_exp).speed(1e-2));
                         ui.label(")");
+
+                        ui.label(format!("1 ui unit = {}", to_metric_prefix(self.sim_cfg.meters_per_unit(), "m")));
                     });
 
 
@@ -531,6 +534,9 @@ impl ChemToyApp {
                         "Show Velocity Vector",
                     );
                     ui.checkbox(&mut self.vis_cfg.show_names, "Show Names");
+                    if ui.button("Reset view").clicked() {
+                        self.scene_rect = Rect::ZERO;
+                    }
                 });
 
                 ui.group(|ui| {
@@ -733,6 +739,8 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
     dbg!(avg_ke);
     (avg_ke / BOLTZMANN) as f32
 }
+
+// TODO: Move the scale factor to VisualizationConfig (oopsie)
 
 trait ToEguiCoords {
     fn to_egui_pos(self, cfg: &SimConfig) -> egui::Pos2;

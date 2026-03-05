@@ -287,7 +287,7 @@ fn display_kilogram(value: f32) -> String {
     to_metric_prefix(value * 1000.0, "g")
 }
 
-fn to_metric_prefix(value: f32, unit: &str) -> String {
+pub fn to_metric_prefix(value: f32, unit: &str) -> String {
     let prefixes = [
         (-24, "y"),
         (-21, "z"),
