@@ -733,8 +733,11 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
     let mut accum: f64 = 0.0;
     for particle in sim.particles.iter() {
         let mass = chem.deriv.compound_lookup[&particle.compound].mass_kg;
-        let ke_joules = (particle.vel.length_squared() * mass) as f64 / 2.0;
-        accum += ke_joules as f64;
+        let v2 = particle.vel.length_squared();
+        if v2.is_finite() {
+            let ke_joules = (v2 * mass) as f64 / 2.0;
+            accum += ke_joules as f64;
+        }
     }
 
     let avg_ke = accum / sim.particles.len() as f64;
