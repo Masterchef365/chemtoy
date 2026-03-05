@@ -23,8 +23,6 @@ pub struct Particle {
 
 pub struct SimConfig {
     pub dimensions: Vec2,
-    /// Time step (seconds) per frame
-    pub dt: f32,
     //pub max_collision_time: f32,
     pub fill_timestep: bool,
     pub gravity: f32,
@@ -39,6 +37,8 @@ pub struct SimConfig {
 
     /// Scale exponent; meters_per_unit = 10^{-scale_exp}
     pub scale_exp: f32,
+    /// Time step (seconds) per frame = 10^-dt_exp
+    pub dt_exp: f32,
 }
 
 impl Sim {
@@ -55,7 +55,7 @@ impl Sim {
 
         let mut elapsed = 0.0;
         let mut remaining_loops = 1000;
-        while elapsed < cfg.dt {
+        while elapsed < cfg.dt() {
             if remaining_loops == 0 {
                 break;
             }
@@ -79,7 +79,7 @@ impl Sim {
             cfg.max_interaction_dist.max(max_diameter_meters(chem)),
         );
 
-        boundaries(&mut self.particles, cfg, chem, cfg.dt);
+        boundaries(&mut self.particles, cfg, chem, cfg.dt());
 
         let mut new_particles: Vec<Particle> = vec![];
         let mut removed_particles = vec![];
@@ -111,11 +111,11 @@ impl Sim {
             }
 
             // Gravity
-            self.particles[i].vel.y += cfg.gravity * cfg.dt;
+            self.particles[i].vel.y += cfg.gravity * cfg.dt();
 
             // Time step
             let vel = self.particles[i].vel;
-            self.particles[i].pos += vel * cfg.dt;
+            self.particles[i].pos += vel * cfg.dt();
         }
 
         removed_particles.sort_unstable_by_key(|f| Reverse(*f));
@@ -126,16 +126,16 @@ impl Sim {
 
         self.particles.extend_from_slice(&new_particles);
 
-        cfg.dt
+        cfg.dt()
     }
 
     /// Returns true if a particle can be placed here
     /// TODO: slow and bad but sufficient!
     pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: Vec2) -> bool {
-        let thresh_sq = max_diameter_meters(chem).powi(2);
+        let thresh_sq = (max_diameter_meters(chem) / 2.0).powi(2);
         self.particles
             .iter()
-            .all(|p| p.pos.distance(pos) > thresh_sq)
+            .all(|p| p.pos.distance_squared(pos) > thresh_sq)
     }
 }
 
@@ -210,8 +210,8 @@ fn interact(
 
     let force = force * diff.normalize();
 
-    particles[i].vel -= force * cfg.dt;
-    particles[j].vel += force * cfg.dt;
+    particles[i].vel -= force * cfg.dt();
+    particles[j].vel += force * cfg.dt();
 
     let r = r2.sqrt();
 
@@ -410,14 +410,18 @@ impl SimConfig {
     pub fn si_per_sim_units_energy(&self) -> f32 {
         self.meters_per_unit().powi(2)
     }
+
+    pub fn dt(&self) -> f32 {
+        10_f32.powf(self.dt_exp)
+    }
 }
 
 impl Default for SimConfig {
     fn default() -> Self {
+        let scale_exp = -11.0;
         Self {
             coulomb_softening: 0.1,
-            dimensions: Vec2::new(500., 500.) * 1e-12,
-            dt: 1. / 60.,
+            dimensions: Vec2::new(500., 500.) * 10_f32.powf(scale_exp),
             //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
@@ -427,7 +431,8 @@ impl Default for SimConfig {
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
             max_interaction_dist: 15.0,
-            scale_exp: -13.0,
+            dt_exp: scale_exp,
+            scale_exp,
         }
     }
 }

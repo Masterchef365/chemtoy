@@ -415,6 +415,7 @@ impl ChemToyApp {
                         );
                     });
 
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Δt: ");
                         ui.add(
@@ -424,6 +425,16 @@ impl ChemToyApp {
                                 .suffix(" units/step"),
                         );
                     });
+                    */
+
+                    ui.horizontal(|ui| {
+                        ui.label("Δt = 10^(");
+                        ui.add(DragValue::new(&mut self.sim_cfg.dt_exp).speed(1e-2));
+                        ui.label(")");
+
+                        ui.label(format!(" = {}", to_metric_prefix(self.sim_cfg.dt(), "s")));
+                    });
+
                     ui.horizontal(|ui| {
                         ui.label("Dimensions: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.dimensions.x));
