@@ -1,12 +1,9 @@
 use std::cmp::Reverse;
-use std::ops::Neg;
 
 use crate::query_accel::QueryAccelerator;
-use chemtoy::METERS_PER_ANGSTROM;
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
-use egui::{Pos2, Vec2};
-use rand::prelude::Distribution;
-use rand::seq::{IteratorRandom, SliceRandom};
+use glam::Vec2;
+use rand::seq::SliceRandom;
 use rand::Rng;
 
 pub struct Sim {
@@ -19,7 +16,7 @@ pub const BOLTZMANN: f64 = 1.381e-23;
 #[derive(Clone)]
 pub struct Particle {
     pub compound: CompoundId,
-    pub pos: Pos2,
+    pub pos: Vec2,
     pub vel: Vec2,
     pub is_stationary: bool,
 }
@@ -76,9 +73,11 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
-        let points: Vec<Pos2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel =
-            QueryAccelerator::new(&points, cfg.max_interaction_dist.max(cfg.particle_radius));
+        let points: Vec<Vec2> = self.particles.iter().map(|p| p.pos).collect();
+        let accel = QueryAccelerator::new(
+            &points,
+            cfg.max_interaction_dist.max(max_diameter_meters(chem)),
+        );
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt);
 
@@ -131,12 +130,12 @@ impl Sim {
     }
 
     /// Returns true if a particle can be placed here
-    /// TODO: slow!
-    pub fn area_is_clear(&mut self, cfg: &SimConfig, pos: Pos2) -> bool {
-        let thresh_sq = (cfg.particle_radius * 2.0).powi(2);
+    /// TODO: slow and bad but sufficient!
+    pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: Vec2) -> bool {
+        let thresh_sq = max_diameter_meters(chem).powi(2);
         self.particles
             .iter()
-            .all(|p| p.pos.distance_sq(pos) > thresh_sq)
+            .all(|p| p.pos.distance(pos) > thresh_sq)
     }
 }
 
@@ -158,23 +157,24 @@ fn reflect(v1: Vec2, v2: Vec2) -> Vec2 {
 fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
     // Boundaries
     for part in particles.iter_mut() {
+        let comp = &chem.deriv.compound_lookup[&part.compound];
+        let radius = comp.transport.radius_meters();
         for i in 0..2 {
             let margin = cfg.dimensions[i] / 1000.;
 
-            if part.pos[i] > cfg.dimensions[i] - cfg.particle_radius {
+            if part.pos[i] > cfg.dimensions[i] - radius {
                 if part.vel[i] > 0.0 {
                     part.vel[i] = -part.vel[i].abs();
-                    part.pos[i] = cfg.dimensions[i] - cfg.particle_radius - margin;
+                    part.pos[i] = cfg.dimensions[i] - radius - margin;
                 }
-            } else if part.pos[i] < cfg.particle_radius {
+            } else if part.pos[i] < radius {
                 if part.vel[i] < 0.0 {
                     part.vel[i] = part.vel[i].abs();
-                    part.pos[i] = cfg.particle_radius + margin;
+                    part.pos[i] = radius + margin;
                 }
             }
 
-            part.pos[i] =
-                part.pos[i].clamp(cfg.particle_radius, cfg.dimensions[i] - cfg.particle_radius);
+            part.pos[i] = part.pos[i].clamp(radius, cfg.dimensions[i] - radius);
         }
     }
 }
@@ -195,9 +195,9 @@ fn interact(
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
 
     let diff = particles[j].pos - particles[i].pos;
-    let r2 = diff.length_sq();
+    let r2 = diff.length_squared();
 
-    let d = (cmpd_i.transport.diameter_angstroms + cmpd_j.transport.diameter_angstroms) * METERS_PER_ANGSTROM / 2.0;
+    let d = cmpd_i.transport.radius_meters() + cmpd_j.transport.radius_meters();
     let d2 = d.powi(2);
 
     let charge = (cmpd_i.charge * cmpd_j.charge) as f32;
@@ -208,7 +208,7 @@ fn interact(
 
     let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.vanderwaals_mag;
 
-    let force = force * diff.normalized();
+    let force = force * diff.normalize();
 
     particles[i].vel -= force * cfg.dt;
     particles[j].vel += force * cfg.dt;
@@ -239,7 +239,7 @@ fn interact(
 
         // Scattering
         if particles[i].is_stationary && !particles[j].is_stationary {
-            let v = reflect(particles[j].vel, diff.normalized());
+            let v = reflect(particles[j].vel, diff.normalize());
             particles[j].vel = v;
         }
 
@@ -300,7 +300,8 @@ fn react(
     };
 
     let e_a = products.activation_energy.e_a * cfg.si_per_sim_units_energy();
-    let ke_rel = (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_sq();
+    let ke_rel =
+        (cmpd_i.mass_kg + cmpd_j.mass_kg) * (particles[i].vel - particles[j].vel).length_sq();
 
     if ke_rel * cfg.si_per_sim_units_energy() < e_a {
         return false;
@@ -383,9 +384,13 @@ fn decompose(
 
     particles[i].compound = product_a.clone();
 
-    let pos = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 2.0;
-    let pos2 = particles[i].pos - particles[i].vel.normalized() * cfg.particle_radius * 4.0;
+    let max_radius = cmpd_i.transport.radius_meters().max(cmpd_j.transport.radius_meters());
+
+    let pos = particles[i].pos - particles[i].vel.normalize() * max_radius * 2.0;
+    let pos2 = particles[i].pos - particles[i].vel.normalize() * max_radius * 4.0;
     particles[j].pos = pos2;
+
+    // TODO: Compensate offset momentum here
 
     Some(Particle {
         compound: product_b.clone(),
@@ -413,7 +418,6 @@ impl Default for SimConfig {
             coulomb_softening: 0.1,
             dimensions: Vec2::new(500., 500.),
             dt: 1. / 60.,
-            particle_radius: 5.0,
             //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
@@ -426,4 +430,19 @@ impl Default for SimConfig {
             scale_exp: -13.0,
         }
     }
+}
+
+fn max_diameter_meters(chem: &ChemicalWorld) -> f32 {
+    chem.laws
+        .species
+        .iter()
+        .max_by(|a, b| {
+            a.transport
+                .diameter_angstroms
+                .partial_cmp(&b.transport.diameter_angstroms)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .unwrap()
+        .transport
+        .radius_meters()
 }

@@ -24,6 +24,7 @@ eframe = { version = "0.33", default-features = false, features = [
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 smallvec = "1.15.1"
+glam = "0.32.0"
 
 rand = "0.8"
 getrandom = { version = "*", features = ["js"] }

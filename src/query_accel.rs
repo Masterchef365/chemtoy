@@ -1,7 +1,6 @@
-//use std::collections::HashMap;
 use egui::ahash::HashMap;
 
-use egui::Pos2;
+use glam::Vec2;
 use smallvec::SmallVec;
 
 type CellContainer = SmallVec<[usize; 5]>;
@@ -16,7 +15,7 @@ pub struct QueryAccelerator {
 
 impl QueryAccelerator {
     /// Construct a new query accelerator
-    pub fn new(points: &[Pos2], radius: f32) -> Self {
+    pub fn new(points: &[Vec2], radius: f32) -> Self {
         let mut cells: HashMap<[i32; 2], CellContainer> = HashMap::default();
 
         for (idx, &point) in points.iter().enumerate() {
@@ -46,9 +45,9 @@ impl QueryAccelerator {
     // Query the neighbors of `queried_idx` in `points`
     pub fn query_neighbors<'s, 'p: 's>(
         &'s self,
-        points: &'p [Pos2],
+        points: &'p [Vec2],
         query_idx: usize,
-        query_point: Pos2,
+        query_point: Vec2,
     ) -> impl Iterator<Item = usize> + 's {
         let origin = quantize(query_point, self.radius);
 
@@ -58,7 +57,7 @@ impl QueryAccelerator {
                 let key = add(origin, *diff);
                 self.cells.get(&key).map(|cell_indices| {
                     cell_indices.iter().copied().filter(move |&idx| {
-                        let dist = (points[idx] - query_point).length_sq();
+                        let dist = (points[idx] - query_point).length_squared();
                         idx != query_idx && dist <= self.radius_sq
                     })
                 })
@@ -70,7 +69,7 @@ impl QueryAccelerator {
     pub fn query_neighbors_fast<'s, 'p: 's>(
         &'s self,
         query_idx: usize,
-        query_point: Pos2,
+        query_point: Vec2,
     ) -> impl Iterator<Item = usize> + 's {
         let origin = quantize(query_point, self.radius);
 
@@ -88,7 +87,7 @@ impl QueryAccelerator {
             .flatten()
     }
 
-    pub fn replace_point(&mut self, idx: usize, prev: Pos2, current: Pos2) {
+    pub fn replace_point(&mut self, idx: usize, prev: Vec2, current: Vec2) {
         // TODO: Keep points in sorted order and use binary search! Or use hashsets for O(n)?
         // Find this point in our cells and remove it
         let prev_bins = self.cells.get_mut(&quantize(prev, self.radius)).unwrap();
@@ -125,7 +124,7 @@ fn add(mut a: [i32; 2], b: [i32; 2]) -> [i32; 2] {
     a
 }
 
-fn quantize(p: Pos2, radius: f32) -> [i32; 2] {
+fn quantize(p: Vec2, radius: f32) -> [i32; 2] {
     [p.x, p.y].map(|v| (v / radius).floor() as i32)
 }
 

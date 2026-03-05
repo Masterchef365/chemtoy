@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, HashMap};
-
 use interned_string::IString;
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +54,13 @@ pub struct Transport {
 impl Laws {
     pub fn built_in() -> Self {
         serde_json::from_slice(include_bytes!("chem.json")).unwrap()
+    }
+}
+
+pub const METERS_PER_ANGSTROM: f32 = 1e-10;
+impl Transport {
+    pub fn radius_meters(&self) -> f32 {
+        self.diameter_angstroms * METERS_PER_ANGSTROM / 2.0
     }
 }
 

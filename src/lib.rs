@@ -1,8 +1,6 @@
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Decomposition};
 use egui::{RichText, Ui};
 
-pub const METERS_PER_ANGSTROM: f32 = 1e-10;
-
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
     #[default]
@@ -147,7 +145,8 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
         for (_idx, compound) in chem.laws.species.iter().enumerate() {
             selectable_cmpd(ui, chem, compound.smiles.clone(), selected_cmpd);
             ui.label(format!("{}", &compound.charge));
-            ui.label(format!("{} kg", &compound.mass_kg));
+            ui.label(format!("{}", display_kilogram(compound.mass_kg)));
+            ui.label(to_metric_prefix(compound.transport.radius_meters(), "m"));
             ui.end_row();
         }
     });
@@ -277,7 +276,7 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
             ui.end_row();
 
             ui.strong("Diameter");
-            ui.label(to_metric_prefix(transport.diameter_angstroms * METERS_, "m"));
+            ui.label(to_metric_prefix(transport.radius_meters(), "m"));
             ui.end_row();
 
         })
@@ -289,7 +288,6 @@ fn display_kilogram(value: f32) -> String {
 }
 
 fn to_metric_prefix(value: f32, unit: &str) -> String {
-    // WARNING: Chatgpt did this lol
     let prefixes = [
         (-24, "y"),
         (-21, "z"),
@@ -318,7 +316,7 @@ fn to_metric_prefix(value: f32, unit: &str) -> String {
     let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
 
     if let Some((e, symbol)) = prefix {
-        format!("{:.0} {}{unit}", value / 10_f64.powi(*e), symbol)
+        format!("{:.0} {}{unit}", value / 10_f32.powi(*e), symbol)
     } else {
         format!("{:.0} {unit}", value) // Fallback in case exponent is out of range
     }

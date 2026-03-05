@@ -402,6 +402,7 @@ impl ChemToyApp {
                                 jittered_grid(
                                     &mut self.sim,
                                     &self.sim_cfg,
+                                    &self.chem,
                                     &self.selected_compound,
                                     self.density,
                                 );
@@ -549,7 +550,7 @@ impl ChemToyApp {
                 .zoom_range(0.0..=100.0)
                 .show(ui, &mut self.scene_rect, |ui| {
                     let (rect, resp) = ui.allocate_exact_size(
-                        self.sim_cfg.dimensions,
+                        self.sim_cfg.dimensions.to_egui_vec(&self.sim_cfg),
                         egui::Sense::click_and_drag(),
                     );
                     // Background rect
@@ -577,11 +578,11 @@ impl ChemToyApp {
                     if let Some(interact_pos) = resp.interact_pointer_pos() {
                         if resp.clicked() || resp.dragged() {
                             let pos = interact_pos - rect.min.to_vec2();
-                            if self.sim.area_is_clear(&self.sim_cfg, pos) {
+                            if self.sim.area_is_clear(&self.chem, &self.sim_cfg, pos.to_sim(&self.sim_cfg)) {
                                 self.sim.particles.push(Particle {
                                     compound: self.selected_compound.clone(),
-                                    pos,
-                                    vel: resp.drag_delta(),
+                                    pos: pos.to_sim(&self.sim_cfg),
+                                    vel: resp.drag_delta().to_sim(&self.sim_cfg),
                                     is_stationary: self.draw_stationary,
                                 });
                             }
@@ -604,22 +605,23 @@ impl ChemToyApp {
     }
 }
 
-fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: &CompoundId, density: f32) {
-    let margin = cfg.particle_radius * 2.0 / density;
+fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, chem: &ChemicalWorld, compound: &CompoundId, density: f32) {
+    let radius = chem.deriv.compound_lookup[compound].transport.radius_meters();
+    let margin = radius * 2.0 / density;
     let spacing = margin * 2.0;
-    let total_width = cfg.particle_radius + spacing;
+    let total_width = radius + spacing;
     let nx = (cfg.dimensions.x / total_width) as i32;
     let ny = (cfg.dimensions.y / total_width) as i32;
 
-    let rand_range = cfg.particle_radius * 1e-2;
+    let rand_range = radius * 1e-2;
     let unif = rand::distributions::Uniform::new(-rand_range, rand_range);
 
     let mut rng = rand::thread_rng();
     for x in 0..nx {
         for y in 0..ny {
             let mut pos = Pos2::new(
-                x as f32 * total_width + margin + cfg.particle_radius,
-                y as f32 * total_width + margin + cfg.particle_radius,
+                x as f32 * total_width + margin + radius,
+                y as f32 * total_width + margin + radius,
             );
 
             pos.x += unif.sample(&mut rng);
@@ -627,8 +629,8 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, compound: &CompoundId, density:
 
             sim.particles.push(Particle {
                 compound: compound.clone(),
-                pos,
-                vel: Vec2::ZERO,
+                pos: pos.to_sim(cfg),
+                vel: Vec2::ZERO.to_sim(cfg),
                 is_stationary: false,
             });
         }
@@ -649,18 +651,18 @@ fn draw_particles(
     vis_cfg: &VisualizationConfig,
 ) {
     for particle in particles {
+        let compound = &laws.compound_lookup[&particle.compound];
         let color = compound_color(&particle.compound);
 
         ui.painter().circle_filled(
-            particle.pos + rect.min.to_vec2(),
-            cfg.particle_radius,
+            particle.pos.to_egui_pos(cfg) + rect.min.to_vec2(),
+            compound.transport.radius_meters() / cfg.meters_per_unit(),
             color,
         );
 
         if vis_cfg.show_names {
-            let compound = &laws.compound_lookup[&particle.compound];
             ui.painter().text(
-                particle.pos,
+                particle.pos.to_egui_pos(cfg),
                 egui::Align2([egui::Align::Center; 2]),
                 &compound.label,
                 Default::default(),
@@ -670,8 +672,8 @@ fn draw_particles(
 
         if vis_cfg.show_velocity_vector {
             ui.painter().arrow(
-                particle.pos + rect.min.to_vec2(),
-                particle.vel,
+                particle.pos.to_egui_pos(cfg) + rect.min.to_vec2(),
+                particle.vel.to_egui_vec(cfg),
                 Stroke::new(1.0, Color32::RED),
             );
         }
@@ -721,7 +723,7 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
     let mut accum: f64 = 0.0;
     for particle in sim.particles.iter() {
         let mass = chem.deriv.compound_lookup[&particle.compound].mass_kg;
-        let ke_joules = (particle.vel.length_sq() * mass) as f64 / 2.0;
+        let ke_joules = (particle.vel.length_squared() * mass) as f64 / 2.0;
         let ke_joules = ke_joules * cfg.si_per_sim_units_energy() as f64;
         accum += ke_joules as f64;
     }
@@ -730,4 +732,38 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
 
     dbg!(avg_ke);
     (avg_ke / BOLTZMANN) as f32
+}
+
+trait ToEguiCoords {
+    fn to_egui_pos(self, cfg: &SimConfig) -> egui::Pos2;
+    fn to_egui_vec(self, cfg: &SimConfig) -> egui::Vec2;
+}
+
+impl ToEguiCoords for glam::Vec2 {
+    fn to_egui_pos(self, cfg: &SimConfig) -> egui::Pos2 {
+        let p = self / cfg.meters_per_unit();
+        egui::Pos2::new(p.x, p.y)
+    }
+
+    fn to_egui_vec(self, cfg: &SimConfig) -> egui::Vec2 {
+        self.to_egui_pos(cfg).to_vec2()
+    }
+}
+
+trait ToSimCoords {
+    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2;
+}
+
+impl ToSimCoords for egui::Pos2 {
+    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2 {
+        let p = self * cfg.meters_per_unit();
+        glam::Vec2::new(p.x, p.y)
+    }
+}
+
+impl ToSimCoords for egui::Vec2 {
+    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2 {
+        let p = self * cfg.meters_per_unit();
+        glam::Vec2::new(p.x, p.y)
+    }
 }
