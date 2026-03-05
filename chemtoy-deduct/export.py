@@ -1,4 +1,4 @@
-from rmgpy.chemkin import load_chemkin_file
+from rmgpy.chemkin import load_chemkin_file, load_transport_file
 import json
 
 T = 298.0 # Kelvin
@@ -8,6 +8,18 @@ species, reactions = load_chemkin_file(
     "/mnt/chemkin/species_dictionary.txt"
 )
 
+# Load transport
+#transport = load_transport_file(transport_params_path, species)
+transport_params_path = "/mnt/chemkin/tran.dat"
+
+import numpy as np
+transport = np.loadtxt(transport_params_path, skiprows=1, dtype=str, usecols=range(9))
+transport_lookup = {}
+key_names = transport[0][1:]
+
+for row in transport[1:]:
+    transport_lookup[row[0]] = {key_name: row[idx] for idx, key_name in enumerate(key_names)}
+
 species_json = []
 for s in species:
     species_json.append({
@@ -15,7 +27,8 @@ for s in species:
         "label": s.label, 
         "charge": s.get_net_charge(), 
         "mass_kg": s.molecular_weight.value_si, 
-        "inchi": s.inchi
+        "inchi": s.inchi,
+        "transport": transport_lookup[s.to_chemkin()],
     })
 
 reactions_json = []
