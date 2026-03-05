@@ -2,6 +2,7 @@ use std::cmp::Reverse;
 use std::ops::Neg;
 
 use crate::query_accel::QueryAccelerator;
+use chemtoy::METERS_PER_ANGSTROM;
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
 use egui::{Pos2, Vec2};
 use rand::prelude::Distribution;
@@ -27,7 +28,6 @@ pub struct SimConfig {
     pub dimensions: Vec2,
     /// Time step (seconds) per frame
     pub dt: f32,
-    pub particle_radius: f32,
     //pub max_collision_time: f32,
     pub fill_timestep: bool,
     pub gravity: f32,
@@ -197,7 +197,7 @@ fn interact(
     let diff = particles[j].pos - particles[i].pos;
     let r2 = diff.length_sq();
 
-    let d = cfg.particle_radius * 2.0;
+    let d = (cmpd_i.transport.diameter_angstroms + cmpd_j.transport.diameter_angstroms) * METERS_PER_ANGSTROM / 2.0;
     let d2 = d.powi(2);
 
     let charge = (cmpd_i.charge * cmpd_j.charge) as f32;

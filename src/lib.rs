@@ -1,6 +1,8 @@
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Decomposition};
 use egui::{RichText, Ui};
 
+pub const METERS_PER_ANGSTROM: f32 = 1e-10;
+
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
     #[default]
@@ -252,6 +254,7 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
                 mass_kg,
                 inchi,
                 charge,
+                transport,
             } = cmpd;
             ui.strong("Label: ");
             ui.label(label.as_ref());
@@ -269,9 +272,54 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
             ui.label(inchi.as_ref());
             ui.end_row();
 
-            ui.strong("Mass (kg): ");
-            ui.label(mass_kg.to_string());
+            ui.strong("Mass: ");
+            ui.label(display_kilogram(*mass_kg));
             ui.end_row();
+
+            ui.strong("Diameter");
+            ui.label(to_metric_prefix(transport.diameter_angstroms * METERS_, "m"));
+            ui.end_row();
+
         })
         .response
+}
+
+fn display_kilogram(value: f32) -> String {
+    to_metric_prefix(value * 1000.0, "g")
+}
+
+fn to_metric_prefix(value: f32, unit: &str) -> String {
+    // WARNING: Chatgpt did this lol
+    let prefixes = [
+        (-24, "y"),
+        (-21, "z"),
+        (-18, "a"),
+        (-15, "f"),
+        (-12, "p"),
+        (-9, "n"),
+        (-6, "μ"),
+        (-3, "m"),
+        (0, ""),
+        (3, "k"),
+        (6, "M"),
+        (9, "G"),
+        (12, "T"),
+        (15, "P"),
+        (18, "E"),
+        (21, "Z"),
+        (24, "Y"),
+    ];
+
+    if value == 0.0 {
+        return "0".to_string();
+    }
+
+    let exponent = (value.abs().log10() / 3.0).floor() as i32 * 3;
+    let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
+
+    if let Some((e, symbol)) = prefix {
+        format!("{:.0} {}{unit}", value / 10_f64.powi(*e), symbol)
+    } else {
+        format!("{:.0} {unit}", value) // Fallback in case exponent is out of range
+    }
 }

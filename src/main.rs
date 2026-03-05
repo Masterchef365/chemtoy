@@ -429,10 +429,6 @@ impl ChemToyApp {
                         ui.label("x");
                         ui.add(DragValue::new(&mut self.sim_cfg.dimensions.y));
                     });
-                    ui.horizontal(|ui| {
-                        ui.label("Particle radius: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.particle_radius).speed(1e-2));
-                    });
                     /*ui.horizontal(|ui| {
                         ui.label("Max collision time: ");
                         ui.add(DragValue::new(&mut self.sim_cfg.max_collision_time).speed(1e-2));
