@@ -283,11 +283,11 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
         .response
 }
 
-fn display_kilogram(value: f32) -> String {
+fn display_kilogram(value: f64) -> String {
     to_metric_prefix(value * 1000.0, "g")
 }
 
-pub fn to_metric_prefix(value: f32, unit: &str) -> String {
+pub fn to_metric_prefix(value: f64, unit: &str) -> String {
     let prefixes = [
         (-24, "y"),
         (-21, "z"),
@@ -316,7 +316,7 @@ pub fn to_metric_prefix(value: f32, unit: &str) -> String {
     let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
 
     if let Some((e, symbol)) = prefix {
-        format!("{:.0} {}{unit}", value / 10_f32.powi(*e), symbol)
+        format!("{:.0} {}{unit}", value / 10_f64.powi(*e), symbol)
     } else {
         format!("{:.0} {unit}", value) // Fallback in case exponent is out of range
     }

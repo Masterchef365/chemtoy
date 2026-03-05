@@ -90,7 +90,7 @@ pub struct ChemToyApp {
     slowdown: usize,
     frame_count: usize,
     with_jittered_grid: bool,
-    density: f32,
+    density: f64,
 
     screen: Screen,
     vis_cfg: VisualizationConfig,
@@ -617,7 +617,7 @@ impl ChemToyApp {
     }
 }
 
-fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, chem: &ChemicalWorld, compound: &CompoundId, density: f32) {
+fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, chem: &ChemicalWorld, compound: &CompoundId, density: f64) {
     let radius = chem.deriv.compound_lookup[compound].transport.radius_meters();
     let margin = radius * 2.0 / density;
     let spacing = margin * 2.0;
@@ -631,17 +631,15 @@ fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, chem: &ChemicalWorld, compound:
     let mut rng = rand::thread_rng();
     for x in 0..nx {
         for y in 0..ny {
-            let mut pos = Pos2::new(
-                x as f32 * total_width + margin + radius,
-                y as f32 * total_width + margin + radius,
-            );
+            let mut x = x as f64 * total_width + margin + radius;
+            let mut y = y as f64 * total_width + margin + radius;
 
-            pos.x += unif.sample(&mut rng);
-            pos.y += unif.sample(&mut rng);
+            x += unif.sample(&mut rng);
+            y += unif.sample(&mut rng);
 
             sim.particles.push(Particle {
                 compound: compound.clone(),
-                pos: pos.to_sim(cfg),
+                pos: glam::DVec2::new(x, y),
                 vel: Vec2::ZERO.to_sim(cfg),
                 is_stationary: false,
             });
@@ -668,7 +666,7 @@ fn draw_particles(
 
         ui.painter().circle_filled(
             particle.pos.to_egui_pos(cfg) + rect.min.to_vec2(),
-            compound.transport.radius_meters() / cfg.meters_per_unit(),
+            (compound.transport.radius_meters() / cfg.meters_per_unit()) as f32,
             color,
         );
 
@@ -752,10 +750,10 @@ trait ToEguiCoords {
     fn to_egui_vec(self, cfg: &SimConfig) -> egui::Vec2;
 }
 
-impl ToEguiCoords for glam::Vec2 {
+impl ToEguiCoords for glam::DVec2 {
     fn to_egui_pos(self, cfg: &SimConfig) -> egui::Pos2 {
-        let p = self / cfg.meters_per_unit();
-        egui::Pos2::new(p.x, p.y)
+        let p = self / cfg.meters_per_unit() as f64;
+        egui::Pos2::new(p.x as _, p.y as _)
     }
 
     fn to_egui_vec(self, cfg: &SimConfig) -> egui::Vec2 {
@@ -764,19 +762,19 @@ impl ToEguiCoords for glam::Vec2 {
 }
 
 trait ToSimCoords {
-    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2;
+    fn to_sim(self, cfg: &SimConfig) -> glam::DVec2;
 }
 
 impl ToSimCoords for egui::Pos2 {
-    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2 {
-        let p = self * cfg.meters_per_unit();
-        glam::Vec2::new(p.x, p.y)
+    fn to_sim(self, cfg: &SimConfig) -> glam::DVec2 {
+        let p = self * cfg.meters_per_unit() as f32;
+        glam::DVec2::new(p.x as _, p.y as _)
     }
 }
 
 impl ToSimCoords for egui::Vec2 {
-    fn to_sim(self, cfg: &SimConfig) -> glam::Vec2 {
-        let p = self * cfg.meters_per_unit();
-        glam::Vec2::new(p.x, p.y)
+    fn to_sim(self, cfg: &SimConfig) -> glam::DVec2 {
+        let p = self * cfg.meters_per_unit() as f32;
+        glam::DVec2::new(p.x as _, p.y as _)
     }
 }

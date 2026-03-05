@@ -15,9 +15,9 @@ pub struct Laws {
 pub struct Compound {
     pub smiles: CompoundId,
     pub label: IString,
-    pub mass_kg: f32,
+    pub mass_kg: f64,
     pub inchi: IString,
-    pub charge: f32,
+    pub charge: f64,
     #[serde(rename = "transport")]
     pub transport: Transport,
 }
@@ -36,19 +36,19 @@ pub struct Reaction {
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct ActivationEnergy {
     #[serde(rename = "A")]
-    pub a: f32,
+    pub a: f64,
     #[serde(rename = "n")]
-    pub n: f32,
+    pub n: f64,
     #[serde(rename = "Ea")]
-    pub e_a: f32,
+    pub e_a: f64,
     #[serde(rename = "delta_g")]
-    pub delta_g: f32,
+    pub delta_g: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct Transport {
     #[serde(rename = "LJ-diam")]
-    pub diameter_angstroms: f32,
+    pub diameter_angstroms: f64,
 }
 
 impl Laws {
@@ -57,9 +57,9 @@ impl Laws {
     }
 }
 
-pub const METERS_PER_ANGSTROM: f32 = 1e-10;
+pub const METERS_PER_ANGSTROM: f64 = 1e-10;
 impl Transport {
-    pub fn radius_meters(&self) -> f32 {
+    pub fn radius_meters(&self) -> f64 {
         self.diameter_angstroms * METERS_PER_ANGSTROM / 2.0
     }
 }
@@ -76,7 +76,7 @@ impl std::fmt::Display for ActivationEnergy {
 }
 
 impl ActivationEnergy {
-    pub fn rate(&self, temperature_kelvin: f32) -> f32 {
+    pub fn rate(&self, temperature_kelvin: f64) -> f64 {
         self.a * (self.e_a / temperature_kelvin / 1.381e-23)
     }
 }

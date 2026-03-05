@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 
 use crate::query_accel::QueryAccelerator;
 use chemtoy_deduct::{ChemicalWorld, CompoundId};
-use glam::Vec2;
+use glam::DVec2;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
@@ -16,27 +16,27 @@ pub const BOLTZMANN: f64 = 1.381e-23;
 #[derive(Clone)]
 pub struct Particle {
     pub compound: CompoundId,
-    pub pos: Vec2,
-    pub vel: Vec2,
+    pub pos: DVec2,
+    pub vel: DVec2,
     pub is_stationary: bool,
 }
 
 pub struct SimConfig {
-    pub dimensions: Vec2,
-    //pub max_collision_time: f32,
+    pub dimensions: DVec2,
+    //pub max_collision_time: f64,
     pub fill_timestep: bool,
-    pub gravity: f32,
-    pub speed_limit: f32,
-    pub temperature: f32,
+    pub gravity: f64,
+    pub speed_limit: f64,
+    pub temperature: f64,
 
-    pub coulomb_softening: f32,
-    pub coulomb_k: f32,
-    pub vanderwaals_mag: f32,
+    pub coulomb_softening: f64,
+    pub coulomb_k: f64,
+    pub vanderwaals_mag: f64,
 
     /// Scale exponent; meters_per_unit = 10^{-scale_exp}
-    pub scale_exp: f32,
+    pub scale_exp: f64,
     /// Time step (seconds) per frame = 10^-dt_exp
-    pub dt_exp: f32,
+    pub dt_exp: f64,
 }
 
 impl Sim {
@@ -45,7 +45,7 @@ impl Sim {
     }
 
     /// Steps forward by as much time as possible up to cfg.dt, returning the actual dt if time was advanced. If cfg.fill_timestep is false, acts like single_step().
-    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
+    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
         // Arbitrary, must be larger than particle radius.
         // TODO: Tune for perf.
 
@@ -70,8 +70,8 @@ impl Sim {
         elapsed
     }
 
-    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f32 {
-        let points: Vec<Vec2> = self.particles.iter().map(|p| p.pos).collect();
+    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
+        let points: Vec<DVec2> = self.particles.iter().map(|p| p.pos).collect();
         let accel = QueryAccelerator::new(
             &points,
             max_radius_meters(chem) * 2.0,
@@ -105,7 +105,7 @@ impl Sim {
 
             // Stationary particles
             if self.particles[i].is_stationary {
-                self.particles[i].vel = Vec2::ZERO;
+                self.particles[i].vel = DVec2::ZERO;
             }
 
             // Gravity
@@ -129,7 +129,7 @@ impl Sim {
 
     /// Returns true if a particle can be placed here
     /// TODO: slow and bad but sufficient!
-    pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: Vec2) -> bool {
+    pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: DVec2) -> bool {
         let thresh_sq = (max_radius_meters(chem) * 2.0).powi(2);
         self.particles
             .iter()
@@ -137,7 +137,7 @@ impl Sim {
     }
 }
 
-fn elastic_collision_vect(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) {
+fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2) -> (DVec2, DVec2) {
     assert!(m1 > 0.0);
     assert!(m2 > 0.0);
     let denom = m1 + m2;
@@ -148,11 +148,11 @@ fn elastic_collision_vect(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> (Vec2, Vec2) 
     (v1f, v2f)
 }
 
-fn reflect(v1: Vec2, v2: Vec2) -> Vec2 {
+fn reflect(v1: DVec2, v2: DVec2) -> DVec2 {
     v1 - 2.0 * v1.dot(v2) * v2
 }
 
-fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f32) {
+fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f64) {
     // Boundaries
     for part in particles.iter_mut() {
         let comp = &chem.deriv.compound_lookup[&part.compound];
@@ -198,7 +198,7 @@ fn interact(
     let d = cmpd_i.transport.radius_meters() + cmpd_j.transport.radius_meters();
     let d2 = d.powi(2);
 
-    let charge = (cmpd_i.charge * cmpd_j.charge) as f32;
+    let charge = (cmpd_i.charge * cmpd_j.charge) as f64;
     //let coulomb_force = force / diff.length_sq();
     let coulomb_force = charge * (-r2 / d2).exp();
 
@@ -256,11 +256,11 @@ fn interact(
     None
 }
 
-fn inelastic_collision(m1: f32, v1: Vec2, m2: f32, v2: Vec2) -> Vec2 {
+fn inelastic_collision(m1: f64, v1: DVec2, m2: f64, v2: DVec2) -> DVec2 {
     (m1 * v1 + m2 * v2) / (m1 + m2)
 }
 
-fn kinetic_energy(vel: Vec2, mass: f32) -> f32 {
+fn kinetic_energy(vel: DVec2, mass: f64) -> f64 {
     vel.length_squared() * mass * 0.5
 }
 
@@ -393,24 +393,24 @@ fn decompose(
     Some(Particle {
         compound: product_b.clone(),
         pos,
-        vel: Vec2::ZERO,
+        vel: DVec2::ZERO,
         is_stationary: false,
     })
 }
 
 impl SimConfig {
     /// Meters per in-simulation unit
-    pub fn meters_per_unit(&self) -> f32 {
-        10_f32.powf(self.scale_exp)
+    pub fn meters_per_unit(&self) -> f64 {
+        10_f64.powf(self.scale_exp)
     }
 
     /// Multiply by sim energy units to get energy per reaction in Joules
-    pub fn si_per_sim_units_energy(&self) -> f32 {
+    pub fn si_per_sim_units_energy(&self) -> f64 {
         self.meters_per_unit().powi(2)
     }
 
-    pub fn dt(&self) -> f32 {
-        10_f32.powf(self.dt_exp)
+    pub fn dt(&self) -> f64 {
+        10_f64.powf(self.dt_exp)
     }
 }
 
@@ -420,7 +420,7 @@ impl Default for SimConfig {
         let dt_exp = -7.0;
         Self {
             coulomb_softening: 0.1,
-            dimensions: Vec2::new(500., 500.) * 10_f32.powf(scale_exp),
+            dimensions: DVec2::new(500., 500.) * 10_f64.powf(scale_exp),
             //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
@@ -434,7 +434,7 @@ impl Default for SimConfig {
     }
 }
 
-fn max_radius_meters(chem: &ChemicalWorld) -> f32 {
+fn max_radius_meters(chem: &ChemicalWorld) -> f64 {
     chem.laws
         .species
         .iter()
