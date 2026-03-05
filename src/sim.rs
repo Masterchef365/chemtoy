@@ -76,7 +76,7 @@ impl Sim {
         let points: Vec<Vec2> = self.particles.iter().map(|p| p.pos).collect();
         let accel = QueryAccelerator::new(
             &points,
-            cfg.max_interaction_dist.max(max_diameter_meters(chem)),
+            cfg.max_interaction_dist.max(max_radius_meters(chem)),
         );
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt());
@@ -132,7 +132,7 @@ impl Sim {
     /// Returns true if a particle can be placed here
     /// TODO: slow and bad but sufficient!
     pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: Vec2) -> bool {
-        let thresh_sq = (max_diameter_meters(chem) / 2.0).powi(2);
+        let thresh_sq = (max_radius_meters(chem) * 2.0).powi(2);
         self.particles
             .iter()
             .all(|p| p.pos.distance_squared(pos) > thresh_sq)
@@ -419,6 +419,7 @@ impl SimConfig {
 impl Default for SimConfig {
     fn default() -> Self {
         let scale_exp = -11.0;
+        let dt_exp = -7.0;
         Self {
             coulomb_softening: 0.1,
             dimensions: Vec2::new(500., 500.) * 10_f32.powf(scale_exp),
@@ -431,13 +432,13 @@ impl Default for SimConfig {
             vanderwaals_mag: 1e2,
             //morse_alpha: 1.0,
             max_interaction_dist: 15.0,
-            dt_exp: scale_exp,
+            dt_exp,
             scale_exp,
         }
     }
 }
 
-fn max_diameter_meters(chem: &ChemicalWorld) -> f32 {
+fn max_radius_meters(chem: &ChemicalWorld) -> f32 {
     chem.laws
         .species
         .iter()
