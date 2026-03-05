@@ -473,11 +473,6 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.vanderwaals_mag).speed(1e-2));
                     });
 
-                    ui.horizontal(|ui| {
-                        ui.label("Max interaction radius: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.max_interaction_dist).speed(1e-2));
-                    });
-
                     /*
                     ui.horizontal(|ui| {
                         ui.label("Morse radius: ");
@@ -741,7 +736,6 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
     for particle in sim.particles.iter() {
         let mass = chem.deriv.compound_lookup[&particle.compound].mass_kg;
         let ke_joules = (particle.vel.length_squared() * mass) as f64 / 2.0;
-        let ke_joules = ke_joules * cfg.si_per_sim_units_energy() as f64;
         accum += ke_joules as f64;
     }
 

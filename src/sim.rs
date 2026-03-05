@@ -31,8 +31,6 @@ pub struct SimConfig {
 
     pub coulomb_softening: f32,
     pub coulomb_k: f32,
-    //pub morse_alpha: f32,
-    pub max_interaction_dist: f32,
     pub vanderwaals_mag: f32,
 
     /// Scale exponent; meters_per_unit = 10^{-scale_exp}
@@ -76,7 +74,7 @@ impl Sim {
         let points: Vec<Vec2> = self.particles.iter().map(|p| p.pos).collect();
         let accel = QueryAccelerator::new(
             &points,
-            cfg.max_interaction_dist.max(max_radius_meters(chem)),
+            max_radius_meters(chem) * 2.0,
         );
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt());
@@ -430,8 +428,6 @@ impl Default for SimConfig {
             temperature: 100., // Arbitrary
             coulomb_k: 1e3,
             vanderwaals_mag: 1e2,
-            //morse_alpha: 1.0,
-            max_interaction_dist: 15.0,
             dt_exp,
             scale_exp,
         }
