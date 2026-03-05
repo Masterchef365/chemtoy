@@ -13,12 +13,18 @@ species, reactions = load_chemkin_file(
 transport_params_path = "/mnt/chemkin/tran.dat"
 
 import numpy as np
-transport = np.loadtxt(transport_params_path, skiprows=1, dtype=str, usecols=range(9))
+transport = np.loadtxt(transport_params_path, skiprows=0, dtype=str, usecols=range(7))
 transport_lookup = {}
 key_names = transport[0][1:]
 
-for row in transport[1:]:
-    transport_lookup[row[0]] = {key_name: row[idx] for idx, key_name in enumerate(key_names)}
+def maybe_cvt_float(v):
+    try:
+        return float(v)
+    except:
+        return v
+
+for row in transport[2:]:
+    transport_lookup[row[0]] = {key_name: maybe_cvt_float(row[idx]) for idx, key_name in enumerate(key_names)}
 
 species_json = []
 for s in species:

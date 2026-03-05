@@ -20,6 +20,8 @@ pub struct Compound {
     pub mass_kg: f32,
     pub inchi: IString,
     pub charge: f32,
+    #[serde(rename = "transport")]
+    pub transport: Transport,
 }
 
 #[derive(Debug)]
@@ -43,6 +45,12 @@ pub struct ActivationEnergy {
     pub e_a: f32,
     #[serde(rename = "delta_g")]
     pub delta_g: f32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+pub struct Transport {
+    #[serde(rename = "LJ-diam")]
+    pub diameter_angstroms: f32,
 }
 
 impl Laws {
