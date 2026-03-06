@@ -90,7 +90,7 @@ impl Sim {
             // Inter-particle forces
             let mut k = None;
             for j in accel.query_neighbors_fast(i, points[i]) {
-                let cmpd_j = &chem.deriv.compound_lookup[&self.particles[i].compound];
+                let cmpd_j = &chem.deriv.compound_lookup[&self.particles[j].compound];
                 let radius_j = cmpd_j.transport.radius_meters();
 
                 if points[i].distance_squared(points[j]) > (radius_i + radius_j).powi(2) {
@@ -442,7 +442,7 @@ impl Default for SimConfig {
             speed_limit: 500.0,
             temperature: 100., // Arbitrary
             coulomb_k: 1e3,
-            vanderwaals_mag: 1e2,
+            vanderwaals_mag: 0.0,
             dt_exp,
             scale_exp,
         }
