@@ -74,7 +74,7 @@ impl Sim {
         let points: Vec<DVec2> = self.particles.iter().map(|p| p.pos).collect();
         let accel = QueryAccelerator::new(
             &points,
-            max_radius_meters(chem) * 2.0,
+            max_radius_meters(chem) * 4.0,
         );
 
         boundaries(&mut self.particles, cfg, chem, cfg.dt());
@@ -111,7 +111,9 @@ impl Sim {
                 // We store an extra neighbor for 3 body interactions
                 k = Some(j);
             }
+        }
 
+        for i in 0..self.particles.len() {
             // Stationary particles
             if self.particles[i].is_stationary {
                 self.particles[i].vel = DVec2::ZERO;

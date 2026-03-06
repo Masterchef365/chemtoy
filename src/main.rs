@@ -610,7 +610,7 @@ impl ChemToyApp {
                                 self.sim.particles.push(Particle {
                                     compound: self.selected_compound.clone(),
                                     pos: pos.to_sim(&self.sim_cfg),
-                                    vel: resp.drag_delta().to_sim(&self.sim_cfg),
+                                    vel: resp.drag_delta().to_sim(&self.sim_cfg) / self.sim_cfg.dt() / 10.0,
                                     is_stationary: self.draw_stationary,
                                 });
                             }
