@@ -85,9 +85,18 @@ impl Sim {
         let mut changed = vec![false; self.particles.len()];
 
         for i in 0..self.particles.len() {
+            let cmpd_i = &chem.deriv.compound_lookup[&self.particles[i].compound];
+            let radius_i = cmpd_i.transport.radius_meters();
             // Inter-particle forces
             let mut k = None;
-            for j in accel.query_neighbors(&points, i, points[i]) {
+            for j in accel.query_neighbors_fast(i, points[i]) {
+                let cmpd_j = &chem.deriv.compound_lookup[&self.particles[i].compound];
+                let radius_j = cmpd_j.transport.radius_meters();
+
+                if points[i].distance_squared(points[j]) > (radius_i + radius_j).powi(2) {
+                    continue;
+                }
+
                 interact(
                     &mut self.particles,
                     i,
@@ -421,7 +430,7 @@ impl SimConfig {
 impl Default for SimConfig {
     fn default() -> Self {
         let scale_exp = -11.0;
-        let dt_exp = -7.0;
+        let dt_exp = -13.0;
         Self {
             coulomb_softening: 0.1,
             dimensions: DVec2::new(500., 500.) * 10_f64.powf(scale_exp),

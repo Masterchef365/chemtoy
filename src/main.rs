@@ -9,6 +9,8 @@ use sim::*;
 mod query_accel;
 mod sim;
 
+const MOL: f64 = 6.02214076e23;
+
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
@@ -552,7 +554,8 @@ impl ChemToyApp {
 
                 ui.group(|ui| {
                     ui.heading("Macroscopic");
-                    let mut temp = calc_temperature(&self.sim, &self.chem, &self.sim_cfg);
+                    let avg_ke = average_kinetic_energy(&self.sim, &self.chem, &self.sim_cfg);
+                    let mut temp = avg_ke / BOLTZMANN;
                     let old_temp = temp;
                     ui.add(DragValue::new(&mut temp).prefix("Temperature: ").suffix(" K").speed(1e-2));
                     if temp != old_temp {
@@ -565,6 +568,7 @@ impl ChemToyApp {
                     }
 
                     ui.label(format!("Average velocity: {:.02} m/s", average_velocity(&self.sim, &self.chem, &self.sim_cfg)));
+                    ui.label(format!("Average kinetic energy: {:.02} kJ/mol", avg_ke * MOL / 1000.0));
                 })
             });
         });
@@ -737,7 +741,7 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
     });
 }
 
-fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
+fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {
         return 0.0;
     }
@@ -747,14 +751,12 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
         let mass = chem.deriv.compound_lookup[&particle.compound].mass_kg;
         let v2 = particle.vel.length_squared();
         if v2.is_finite() {
-            let ke_joules = (v2 * mass) as f64 / 2.0;
+            let ke_joules = (v2 * mass) as f64;
             accum += ke_joules as f64;
         }
     }
 
-    let avg_ke = accum / sim.particles.len() as f64;
-
-    avg_ke / BOLTZMANN
+    accum / sim.particles.len() as f64 / 2.0
 }
 
 
