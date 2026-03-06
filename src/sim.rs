@@ -137,15 +137,17 @@ impl Sim {
     }
 }
 
-fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2) -> (DVec2, DVec2) {
+/// pos_diff = P2-P1
+fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2, pos_diff: DVec2) -> (DVec2, DVec2) {
     assert!(m1 > 0.0);
     assert!(m2 > 0.0);
-    let denom = m1 + m2;
-    let diff = m1 - m2;
 
-    let v1f = (diff * v1 + 2. * m2 * v2) / denom;
-    let v2f = (2. * m1 * v1 - diff * v2) / denom;
-    (v1f, v2f)
+    let p1 = m1 * v1;
+    let p2 = m2 * v2;
+
+    let i = (p2 - p1).project_onto(pos_diff);
+
+    (v1 + i / m1, v2 - i / m2)
 }
 
 fn reflect(v1: DVec2, v2: DVec2) -> DVec2 {
@@ -247,6 +249,7 @@ fn interact(
                 particles[i].vel,
                 cmpd_j.mass_kg,
                 particles[j].vel,
+                particles[j].pos - particles[i].pos,
             );
             particles[i].vel = vi;
             particles[j].vel = vj;
@@ -376,6 +379,7 @@ fn decompose(
         particles[i].vel,
         cmpd_j.mass_kg,
         particles[j].vel,
+        particles[j].pos - particles[i].pos,
     );
     particles[j].vel = vel_j;
     particles[i].vel = vel_i;
