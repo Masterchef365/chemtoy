@@ -552,7 +552,19 @@ impl ChemToyApp {
 
                 ui.group(|ui| {
                     ui.heading("Macroscopic");
-                    ui.label(format!("{:.02} K", calc_temperature(&self.sim, &self.chem, &self.sim_cfg)));
+                    let mut temp = calc_temperature(&self.sim, &self.chem, &self.sim_cfg);
+                    let old_temp = temp;
+                    ui.add(DragValue::new(&mut temp).prefix("Temperature: ").suffix(" K").speed(1e-2));
+                    if temp != old_temp {
+                        if old_temp > 0.0 {
+                            let temp_ratio = temp / old_temp;
+                            for particle in self.sim.particles.iter_mut() {
+                                particle.vel *= temp_ratio.sqrt();
+                            }
+                        }
+                    }
+
+                    ui.label(format!("Average velocity: {:.02} m/s", average_velocity(&self.sim, &self.chem, &self.sim_cfg)));
                 })
             });
         });
@@ -683,7 +695,7 @@ fn draw_particles(
         if vis_cfg.show_velocity_vector {
             ui.painter().arrow(
                 particle.pos.to_egui_pos(cfg) + rect.min.to_vec2(),
-                particle.vel.to_egui_vec(cfg),
+                (particle.vel * cfg.dt()).to_egui_vec(cfg),
                 Stroke::new(1.0, Color32::RED),
             );
         }
@@ -725,7 +737,7 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
     });
 }
 
-fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
+fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {
         return 0.0;
     }
@@ -742,8 +754,22 @@ fn calc_temperature(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f32 {
 
     let avg_ke = accum / sim.particles.len() as f64;
 
-    dbg!(avg_ke);
-    (avg_ke / BOLTZMANN) as f32
+    avg_ke / BOLTZMANN
+}
+
+
+fn average_velocity(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
+    if sim.particles.is_empty() {
+        return 0.0;
+    }
+
+    let mut accum: f64 = 0.0;
+    for particle in sim.particles.iter() {
+        let v = particle.vel.length();
+        accum += v as f64;
+    }
+
+    accum / sim.particles.len() as f64
 }
 
 // TODO: Move the scale factor to VisualizationConfig (oopsie)
