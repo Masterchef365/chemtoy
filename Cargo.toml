@@ -29,6 +29,8 @@ glam = "0.32.0"
 rand = "0.8"
 getrandom = { version = "*", features = ["js"] }
 
+egui-simpletabs = { git = "https://github.com/Masterchef365/egui-simpletabs.git", rev = "b9de878" }
+
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 env_logger = "0.11"

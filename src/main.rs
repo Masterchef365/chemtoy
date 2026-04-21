@@ -1,10 +1,11 @@
 use std::{collections::HashMap, hash::Hasher};
 
-use chemtoy::{cmpd_label, compound_color, selectable_cmpd, to_metric_prefix};
+use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
 use rand::prelude::Distribution;
 use sim::*;
+use egui_simpletabs::metric::{edit_metric_f64, to_metric_prefix};
 
 mod query_accel;
 mod sim;
@@ -439,9 +440,9 @@ impl ChemToyApp {
 
                     ui.horizontal(|ui| {
                         ui.label("Dimensions: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.dimensions.x));
+                        ui.add(edit_metric_f64(&mut self.sim_cfg.dimensions.x, "m"));
                         ui.label("x");
-                        ui.add(DragValue::new(&mut self.sim_cfg.dimensions.y));
+                        ui.add(edit_metric_f64(&mut self.sim_cfg.dimensions.y, "m"));
                         ui.label("m");
                     });
                     /*ui.horizontal(|ui| {
@@ -450,7 +451,7 @@ impl ChemToyApp {
                     });*/
                     ui.horizontal(|ui| {
                         ui.label("Gravity: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.gravity).speed(1e-2));
+                        ui.add(edit_metric_f64(&mut self.sim_cfg.gravity, "m/s²"));
                     });
                     /*
                     ui.horizontal(|ui| {
@@ -460,7 +461,7 @@ impl ChemToyApp {
                     */
                     ui.horizontal(|ui| {
                         ui.label("Temperature: ");
-                        ui.add(DragValue::new(&mut self.sim_cfg.temperature).speed(1e-2));
+                        ui.add(edit_metric_f64(&mut self.sim_cfg.temperature, "K"));
                     });
 
                     /*
@@ -557,7 +558,7 @@ impl ChemToyApp {
                     let avg_ke = average_kinetic_energy(&self.sim, &self.chem, &self.sim_cfg);
                     let mut temp = avg_ke / BOLTZMANN;
                     let old_temp = temp;
-                    ui.add(DragValue::new(&mut temp).prefix("Temperature: ").suffix(" K").speed(1e-2));
+                    ui.add(edit_metric_f64(&mut temp, "K"));
                     if temp != old_temp {
                         if old_temp > 0.0 {
                             let temp_ratio = temp / old_temp;

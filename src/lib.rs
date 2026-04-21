@@ -1,5 +1,6 @@
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Decomposition};
 use egui::{RichText, Ui};
+use egui_simpletabs::metric::to_metric_prefix;
 
 #[derive(Default, Clone, Copy, PartialEq, Eq)]
 enum Page {
@@ -285,39 +286,4 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
 
 fn display_kilogram(value: f64) -> String {
     to_metric_prefix(value * 1000.0, "g")
-}
-
-pub fn to_metric_prefix(value: f64, unit: &str) -> String {
-    let prefixes = [
-        (-24, "y"),
-        (-21, "z"),
-        (-18, "a"),
-        (-15, "f"),
-        (-12, "p"),
-        (-9, "n"),
-        (-6, "μ"),
-        (-3, "m"),
-        (0, ""),
-        (3, "k"),
-        (6, "M"),
-        (9, "G"),
-        (12, "T"),
-        (15, "P"),
-        (18, "E"),
-        (21, "Z"),
-        (24, "Y"),
-    ];
-
-    if value == 0.0 {
-        return "0".to_string();
-    }
-
-    let exponent = (value.abs().log10() / 3.0).floor() as i32 * 3;
-    let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
-
-    if let Some((e, symbol)) = prefix {
-        format!("{:.0} {}{unit}", value / 10_f64.powi(*e), symbol)
-    } else {
-        format!("{:.0} {unit}", value) // Fallback in case exponent is out of range
-    }
 }
