@@ -71,71 +71,34 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
-        let points: Vec<DVec2> = self.particles.iter().map(|p| p.pos).collect();
-        let accel = QueryAccelerator::new(
-            &points,
-            max_radius_meters(chem) * 4.0,
-        );
+        let dt = self.apply_next_event(cfg, chem).unwrap_or(cfg.dt());
 
-        boundaries(&mut self.particles, cfg, chem, cfg.dt());
-
-        let mut new_particles: Vec<Particle> = vec![];
-        let mut removed_particles = vec![];
-
-        let mut changed = vec![false; self.particles.len()];
-
-        for i in 0..self.particles.len() {
-            let cmpd_i = &chem.deriv.compound_lookup[&self.particles[i].compound];
-            let radius_i = cmpd_i.transport.radius_meters();
-            // Inter-particle forces
-            let mut k = None;
-            for j in accel.query_neighbors_fast(i, points[i]) {
-                let cmpd_j = &chem.deriv.compound_lookup[&self.particles[j].compound];
-                let radius_j = cmpd_j.transport.radius_meters();
-
-                if points[i].distance_squared(points[j]) > (radius_i + radius_j).powi(2) {
-                    continue;
-                }
-
-                interact(
-                    &mut self.particles,
-                    i,
-                    j,
-                    k,
-                    cfg,
-                    chem,
-                    &mut new_particles,
-                    &mut removed_particles,
-                    &mut changed,
-                );
-                // We store an extra neighbor for 3 body interactions
-                k = Some(j);
-            }
+        for part in &mut self.particles {
+            part.vel.y = dt * cfg.gravity;
         }
 
-        for i in 0..self.particles.len() {
-            // Stationary particles
-            if self.particles[i].is_stationary {
-                self.particles[i].vel = DVec2::ZERO;
+        dt
+    }
+
+    pub fn apply_next_event(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f64> {
+        if let Some((mut dt, action)) = soonest_event(&self.particles, cfg, chem) {
+            let dt_too_large = dt > cfg.dt();
+            if dt_too_large {
+                dt = dt.min(cfg.dt());
             }
 
-            // Gravity
-            self.particles[i].vel.y += cfg.gravity * cfg.dt();
+            for part in &mut self.particles {
+                part.pos += part.vel * dt;
+            }
 
-            // Time step
-            let vel = self.particles[i].vel;
-            self.particles[i].pos += vel * cfg.dt();
+            if !dt_too_large {
+                action.apply(&mut self.particles);
+            }
+
+            Some(dt)
+        } else {
+            None
         }
-
-        removed_particles.sort_unstable_by_key(|f| Reverse(*f));
-        removed_particles.dedup();
-        for i in removed_particles {
-            self.particles.swap_remove(i);
-        }
-
-        self.particles.extend_from_slice(&new_particles);
-
-        cfg.dt()
     }
 
     /// Returns true if a particle can be placed here
@@ -194,12 +157,10 @@ fn interact(
     particles: &mut [Particle],
     i: usize,
     j: usize,
-    k: Option<usize>,
     cfg: &SimConfig,
     chem: &ChemicalWorld,
     add_list: &mut Vec<Particle>,
     remove_list: &mut Vec<usize>,
-    changed: &mut [bool],
 ) -> Option<Particle> {
     // Medium-range interactions
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
@@ -209,45 +170,27 @@ fn interact(
     let r2 = diff.length_squared();
 
     let d = cmpd_i.transport.radius_meters() + cmpd_j.transport.radius_meters();
-    let d2 = d.powi(2);
+    //let d2 = d.powi(2);
 
-    let charge = (cmpd_i.charge * cmpd_j.charge) as f64;
-    //let coulomb_force = force / diff.length_sq();
-    let coulomb_force = charge * (-r2 / d2).exp();
+    //let charge = (cmpd_i.charge * cmpd_j.charge) as f64;
+    //let coulomb_force = charge * (-r2 / d2).exp();
 
-    let vanderwalls = -(-r2 / d2).exp();
+    //let vanderwalls = -(-r2 / d2).exp();
 
-    let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.vanderwaals_mag;
+    //let force = coulomb_force * cfg.coulomb_k + vanderwalls * cfg.vanderwaals_mag;
 
-    let force = force * diff.normalize();
+    //let force = force * diff.normalize();
 
-    particles[i].vel -= force * cfg.dt();
-    particles[j].vel += force * cfg.dt();
+    //particles[i].vel -= force * cfg.dt();
+    //particles[j].vel += force * cfg.dt();
 
     let r = r2.sqrt();
 
     // Collision
     let rvel = particles[j].vel - particles[i].vel;
-    let may_collide = rvel.dot(diff) < 0.0;
+    let may_collide = true;//rvel.dot(diff) < 0.0;
 
     if r < d && may_collide {
-        if let Some(k) = k {
-            if !(changed[i] || changed[j]) && react(particles, i, j, k, cfg, chem) {
-                changed[i] = true;
-                changed[j] = true;
-                remove_list.push(i);
-                return None;
-            }
-        }
-
-        if !(changed[i] || changed[j]) {
-            if let Some(new_particle) = decompose(particles, i, j, cfg, chem) {
-                changed[i] = true;
-                changed[j] = true;
-                add_list.push(new_particle);
-            }
-        }
-
         // Scattering
         if particles[i].is_stationary && !particles[j].is_stationary {
             let v = reflect(particles[j].vel, diff.normalize());
@@ -462,4 +405,58 @@ fn max_radius_meters(chem: &ChemicalWorld) -> f64 {
         .unwrap()
         .transport
         .radius_meters()
+}
+
+enum Action {
+    WallCollision {
+        particle: usize,
+        normal: usize,
+    },
+    ParticleCollision {
+        part_a: usize,
+        part_b: usize,
+    }
+}
+
+fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Option<(f64, Action)> {
+    let mut soonest_time = f64::MAX;
+    let mut action = None;
+
+    for i in 0..particles.len() {
+        let part = &particles[i];
+        let cmpd = &chem.deriv.compound_lookup[&part.compound];
+        let radius = cmpd.transport.radius_meters();
+
+        for dim in 0..2 {
+            if part.vel[dim] == 0.0 {
+                continue;
+            }
+
+            let time = if part.vel[dim] > 0.0 {
+                (cfg.dimensions[dim] - part.pos[dim] - radius) / part.vel[dim]
+            } else {
+                (part.pos[dim] - radius) / -part.vel[dim]
+            };
+
+            if time < soonest_time {
+                soonest_time = time;
+                action = Some(Action::WallCollision { particle: i, normal: dim })
+            }
+        }
+    }
+
+    action.map(|act| (soonest_time, act))
+}
+
+impl Action {
+    pub fn apply(&self, particles: &mut [Particle]) {
+        match self {
+            Self::WallCollision { particle, normal } => {
+                particles[*particle].vel[*normal] *= -1.0;
+            },
+            Self::ParticleCollision { part_a, part_b } => {
+                todo!()
+            },
+        }
+    }
 }
