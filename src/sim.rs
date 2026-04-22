@@ -88,7 +88,7 @@ impl Sim {
             }
 
             if !dt_too_large {
-                action.apply(&mut self.particles);
+                action.apply(&mut self.particles, chem);
             }
 
             Some(dt)
@@ -115,7 +115,7 @@ fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2, pos_diff: DVec
     let p1 = m1 * v1;
     let p2 = m2 * v2;
 
-    let i = (p2 - p1).project_onto(pos_diff);
+    let i = (p2 - p1).project_onto_normalized(pos_diff);
 
     (v1 + i / m1, v2 - i / m2)
 }
@@ -446,18 +446,92 @@ fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) 
         }
     }
 
+    // Particle collisions
+    for i in 0..particles.len() {
+        let r_i = &chem.deriv.compound_lookup[&particles[i].compound].transport.radius_meters();
+
+        for j in i + 1..particles.len() {
+            let rel_pos = particles[j].pos - particles[i].pos;
+            let rel_vel = particles[j].vel - particles[i].vel;
+            let r_j = &chem.deriv.compound_lookup[&particles[j].compound].transport.radius_meters();
+
+            if let Some(event_time) = time_of_intersection_particles(rel_pos, rel_vel, r_i + r_j) {
+                if event_time > 0.0 && event_time < soonest_time {
+                    soonest_time = event_time;
+                    event = Some(SimEvent::ParticleCollision { part_a: i, part_b: j });
+                }
+            }
+        }
+    }
+
     event.map(|act| (soonest_time, act))
 }
 
 impl SimEvent {
-    pub fn apply(&self, particles: &mut [Particle]) {
+    pub fn apply(&self, particles: &mut [Particle], chem: &ChemicalWorld) {
         match self {
             Self::WallCollision { particle, normal } => {
                 particles[*particle].vel[*normal] *= -1.0;
             },
-            Self::ParticleCollision { part_a, part_b } => {
-                todo!()
+            Self::ParticleCollision { part_a: i, part_b: j } => {
+                let m_i = chem.deriv.compound_lookup[&particles[*i].compound].mass_kg;
+                let m_j = chem.deriv.compound_lookup[&particles[*j].compound].mass_kg;
+
+                let dp = (particles[*j].pos - particles[*j].pos).normalize_or_zero();
+                let (v_i, v_j) = elastic_collision_vect(
+                    m_j, particles[*j].vel,
+                    m_i, particles[*i].vel,
+                    dp,
+                );
+
+                dbg!(dp);
+                dbg!(m_i, m_j, v_i, v_j);
+
+                particles[*i].vel = v_i;
+                particles[*j].vel = v_j;
+                //let [pi, pj] = particles.get_disjoint_mut([*i, *j]).unwrap();
+                //std::mem::swap(&mut pi.vel, &mut pj.vel);
             },
         }
+    }
+}
+
+fn time_of_intersection_particles(rel_pos: DVec2, rel_vel: DVec2, sum_radii: f64) -> Option<f64> {
+    // Intersection means |rel_pos + t * rel_vel| == 0
+    // => (rel_pos + t*rel_vel)·(rel_pos + t*rel_vel) == 0
+    let a = rel_vel.dot(rel_vel);
+    let b = 2.0 * rel_pos.dot(rel_vel);
+    let c = rel_pos.dot(rel_pos) - sum_radii.powi(2);
+
+    if a == 0.0 {
+        // No relative motion
+        if c == 0.0 {
+            return Some(0.0); // Already intersecting
+        }
+        return None; // Never intersect
+    }
+
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        return None; // No real solution
+    }
+
+    let sqrt_d = discriminant.sqrt();
+    let t1 = (-b - sqrt_d) / (2.0 * a);
+    let t2 = (-b + sqrt_d) / (2.0 * a);
+
+    // We care about the earliest non-negative intersection
+    let mut t_min = f64::INFINITY;
+    if t1 >= 0.0 {
+        t_min = t_min.min(t1);
+    }
+    if t2 >= 0.0 {
+        t_min = t_min.min(t2);
+    }
+
+    if t_min.is_infinite() {
+        None
+    } else {
+        Some(t_min)
     }
 }
