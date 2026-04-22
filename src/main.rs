@@ -97,6 +97,7 @@ pub struct ChemToyApp {
 
     screen: Screen,
     vis_cfg: VisualizationConfig,
+    last_time_step: f64,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -326,6 +327,7 @@ impl ChemToyApp {
             screen: Screen::Simulation,
             vis_cfg: Default::default(),
             density: 0.5,
+            last_time_step: 0.0,
         }
     }
 }
@@ -370,6 +372,8 @@ impl ChemToyApp {
                     self.paused ^= ui.button(text).clicked();
                     single_step |= ui.button("Single step").clicked();
                     ui.checkbox(&mut self.sim_cfg.fill_timestep, "Fill timestep");
+
+                    ui.label(egui_simpletabs::metric::to_metric_prefix(self.last_time_step, "s"));
                 });
 
                 ui.group(|ui| {
@@ -432,10 +436,10 @@ impl ChemToyApp {
 
                     ui.horizontal(|ui| {
                         ui.label("Δt = 10^(");
-                        ui.add(DragValue::new(&mut self.sim_cfg.dt_exp).speed(1e-2));
+                        ui.add(DragValue::new(&mut self.sim_cfg.max_dt_exp).speed(1e-2));
                         ui.label(")");
 
-                        ui.label(format!(" = {}", to_metric_prefix(self.sim_cfg.dt(), "s")));
+                        ui.label(format!(" = {}", to_metric_prefix(self.sim_cfg.max_dt(), "s")));
                     });
 
                     ui.horizontal(|ui| {
@@ -443,7 +447,6 @@ impl ChemToyApp {
                         ui.add(edit_metric_f64(&mut self.sim_cfg.dimensions.x, "m"));
                         ui.label("x");
                         ui.add(edit_metric_f64(&mut self.sim_cfg.dimensions.y, "m"));
-                        ui.label("m");
                     });
                     /*ui.horizontal(|ui| {
                         ui.label("Max collision time: ");
@@ -611,7 +614,7 @@ impl ChemToyApp {
                                 self.sim.particles.push(Particle {
                                     compound: self.selected_compound.clone(),
                                     pos: pos.to_sim(&self.sim_cfg),
-                                    vel: resp.drag_delta().to_sim(&self.sim_cfg) / self.sim_cfg.dt() / 10.0,
+                                    vel: resp.drag_delta().to_sim(&self.sim_cfg) / self.sim_cfg.max_dt() / 10.0,
                                     is_stationary: self.draw_stationary,
                                 });
                             }
@@ -622,7 +625,7 @@ impl ChemToyApp {
 
         if !self.paused || single_step {
             if self.frame_count % self.slowdown.max(1) == 0 {
-                self.sim.step(&self.sim_cfg, &self.chem);
+                self.last_time_step = self.sim.step(&self.sim_cfg, &self.chem);
             }
             ctx.request_repaint();
             self.frame_count += 1;
@@ -700,7 +703,7 @@ fn draw_particles(
         if vis_cfg.show_velocity_vector {
             ui.painter().arrow(
                 particle.pos.to_egui_pos(cfg) + rect.min.to_vec2(),
-                (particle.vel * cfg.dt()).to_egui_vec(cfg),
+                (particle.vel * cfg.max_dt() * 100.0).to_egui_vec(cfg),
                 Stroke::new(1.0, Color32::RED),
             );
         }

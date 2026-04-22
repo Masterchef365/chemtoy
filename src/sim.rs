@@ -13,7 +13,7 @@ pub struct Sim {
 // kJ/K
 pub const BOLTZMANN: f64 = 1.381e-23;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Particle {
     pub compound: CompoundId,
     pub pos: DVec2,
@@ -36,7 +36,9 @@ pub struct SimConfig {
     /// Scale exponent; meters_per_unit = 10^{-scale_exp}
     pub scale_exp: f64,
     /// Time step (seconds) per frame = 10^-dt_exp
-    pub dt_exp: f64,
+    pub max_dt_exp: f64,
+    /// Maximum number of iterations before bailout
+    pub max_iters: usize,
 }
 
 impl Sim {
@@ -46,17 +48,9 @@ impl Sim {
 
     /// Steps forward by as much time as possible up to cfg.dt, returning the actual dt if time was advanced. If cfg.fill_timestep is false, acts like single_step().
     pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
-        // Arbitrary, must be larger than particle radius.
-        // TODO: Tune for perf.
-
-        // Build a map for the collisions
-
         let mut elapsed = 0.0;
-        let mut remaining_loops = 1000;
-        while elapsed < cfg.dt() {
-            if remaining_loops == 0 {
-                break;
-            }
+        let mut remaining_loops = cfg.max_iters;
+        while elapsed < cfg.max_dt() && remaining_loops > 0 {
             remaining_loops -= 1;
 
             let dt = self.single_step(cfg, chem);
@@ -71,10 +65,11 @@ impl Sim {
     }
 
     pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
-        let dt = self.apply_next_event(cfg, chem).unwrap_or(cfg.dt());
+        let dt = self.apply_next_event(cfg, chem).unwrap_or(cfg.max_dt());
 
+        // Integrate acceleration due to gravity
         for part in &mut self.particles {
-            part.vel.y = dt * cfg.gravity;
+            part.vel.y += cfg.gravity * dt;
         }
 
         dt
@@ -82,11 +77,12 @@ impl Sim {
 
     pub fn apply_next_event(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f64> {
         if let Some((mut dt, action)) = soonest_event(&self.particles, cfg, chem) {
-            let dt_too_large = dt > cfg.dt();
+            let dt_too_large = dt > cfg.max_dt();
             if dt_too_large {
-                dt = dt.min(cfg.dt());
+                dt = dt.min(cfg.max_dt());
             }
 
+            // Integrate position
             for part in &mut self.particles {
                 part.pos += part.vel * dt;
             }
@@ -94,6 +90,7 @@ impl Sim {
             if !dt_too_large {
                 action.apply(&mut self.particles);
             }
+            dbg!(dt_too_large);
 
             Some(dt)
         } else {
@@ -128,6 +125,7 @@ fn reflect(v1: DVec2, v2: DVec2) -> DVec2 {
     v1 - 2.0 * v1.dot(v2) * v2
 }
 
+/*
 fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld, dt: f64) {
     // Boundaries
     for part in particles.iter_mut() {
@@ -152,6 +150,7 @@ fn boundaries(particles: &mut [Particle], cfg: &SimConfig, chem: &ChemicalWorld,
         }
     }
 }
+*/
 
 fn interact(
     particles: &mut [Particle],
@@ -367,8 +366,8 @@ impl SimConfig {
         self.meters_per_unit().powi(2)
     }
 
-    pub fn dt(&self) -> f64 {
-        10_f64.powf(self.dt_exp)
+    pub fn max_dt(&self) -> f64 {
+        10_f64.powf(self.max_dt_exp)
     }
 }
 
@@ -377,6 +376,7 @@ impl Default for SimConfig {
         let scale_exp = -11.0;
         let dt_exp = -13.0;
         Self {
+            max_iters: 1000,
             coulomb_softening: 0.1,
             dimensions: DVec2::new(500., 500.) * 10_f64.powf(scale_exp),
             //max_collision_time: 1e-2,
@@ -386,7 +386,7 @@ impl Default for SimConfig {
             temperature: 100., // Arbitrary
             coulomb_k: 1e3,
             vanderwaals_mag: 0.0,
-            dt_exp,
+            max_dt_exp: dt_exp,
             scale_exp,
         }
     }
@@ -407,7 +407,8 @@ fn max_radius_meters(chem: &ChemicalWorld) -> f64 {
         .radius_meters()
 }
 
-enum Action {
+#[derive(Debug)]
+enum SimEvent {
     WallCollision {
         particle: usize,
         normal: usize,
@@ -418,10 +419,11 @@ enum Action {
     }
 }
 
-fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Option<(f64, Action)> {
+fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Option<(f64, SimEvent)> {
     let mut soonest_time = f64::MAX;
-    let mut action = None;
+    let mut event = None;
 
+    // Wall collisions
     for i in 0..particles.len() {
         let part = &particles[i];
         let cmpd = &chem.deriv.compound_lookup[&part.compound];
@@ -432,23 +434,26 @@ fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) 
                 continue;
             }
 
-            let time = if part.vel[dim] > 0.0 {
+            let event_time = if part.vel[dim] > 0.0 {
                 (cfg.dimensions[dim] - part.pos[dim] - radius) / part.vel[dim]
             } else {
                 (part.pos[dim] - radius) / -part.vel[dim]
             };
 
-            if time < soonest_time {
-                soonest_time = time;
-                action = Some(Action::WallCollision { particle: i, normal: dim })
+            if event_time > 0.0 && event_time < soonest_time {
+                soonest_time = event_time;
+                event = Some(SimEvent::WallCollision { particle: i, normal: dim })
             }
         }
     }
 
-    action.map(|act| (soonest_time, act))
+    dbg!(soonest_time);
+    dbg!(&event);
+    eprintln!();
+    event.map(|act| (soonest_time, act))
 }
 
-impl Action {
+impl SimEvent {
     pub fn apply(&self, particles: &mut [Particle]) {
         match self {
             Self::WallCollision { particle, normal } => {
