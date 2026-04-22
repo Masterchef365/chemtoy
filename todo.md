@@ -1,2 +1,3 @@
-- [ ] Show the text in groups somehow (dbscan?)
-- [ ] Preserve momentum in collisions (for now only preserves total kinetic energy)
+# TODO
+- [ ] Cross section size / particle radius (van der waals)
+- [ ] Correct units

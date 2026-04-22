@@ -477,20 +477,15 @@ impl SimEvent {
                 let m_i = chem.deriv.compound_lookup[&particles[*i].compound].mass_kg;
                 let m_j = chem.deriv.compound_lookup[&particles[*j].compound].mass_kg;
 
-                let dp = (particles[*j].pos - particles[*j].pos).normalize_or_zero();
+                let dp = (particles[*j].pos - particles[*i].pos).normalize_or_zero();
                 let (v_i, v_j) = elastic_collision_vect(
-                    m_j, particles[*j].vel,
                     m_i, particles[*i].vel,
+                    m_j, particles[*j].vel,
                     dp,
                 );
 
-                dbg!(dp);
-                dbg!(m_i, m_j, v_i, v_j);
-
                 particles[*i].vel = v_i;
                 particles[*j].vel = v_j;
-                //let [pi, pj] = particles.get_disjoint_mut([*i, *j]).unwrap();
-                //std::mem::swap(&mut pi.vel, &mut pj.vel);
             },
         }
     }
