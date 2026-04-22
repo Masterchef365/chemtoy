@@ -379,7 +379,7 @@ impl SimConfig {
 impl Default for SimConfig {
     fn default() -> Self {
         let scale_exp = -11.0;
-        let dt_exp = -13.0;
+        let dt_exp = -14.0;
         Self {
             max_iters: 1000,
             //coulomb_softening: 0.1,

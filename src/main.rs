@@ -570,7 +570,7 @@ impl ChemToyApp {
                 ui.group(|ui| {
                     ui.heading("Macroscopic (2D)");
                     let avg_ke = average_kinetic_energy(&self.sim, &self.chem, &self.sim_cfg);
-                    let mut temp = avg_ke / BOLTZMANN;
+                    let mut temp = avg_ke / 1000.0 / BOLTZMANN;
                     let old_temp = temp;
                     ui.add(edit_metric_f64(&mut temp, "K"));
                     if temp != old_temp {
@@ -591,7 +591,7 @@ impl ChemToyApp {
                     ));
                     ui.label(format!(
                         "Average kinetic energy: {}",
-                        to_metric_prefix(avg_ke / MOL, "J/mol")
+                        to_metric_prefix(avg_ke * MOL, "J/mol")
                     ));
                 })
             });
@@ -779,6 +779,8 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
     });
 }
 
+
+/// Returns ke in joules
 fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {
         return 0.0;
