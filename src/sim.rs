@@ -118,11 +118,12 @@ fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2, pos_diff: DVec
     let mtot = m1 + m2;
 
     let v2i = rvel.project_onto_normalized(pos_diff);
+    let rem = rvel - v2i;
 
     let v1f = 2.0 * m2 * v2i / mtot;
     let v2f = (m2 - m1) * v2i / mtot;
 
-    (v1f + v1, v2f + v1)
+    (v1f + v1, v2f + v1 + rem)
 }
 
 fn reflect(v1: DVec2, v2: DVec2) -> DVec2 {
@@ -482,6 +483,11 @@ impl SimEvent {
                 let m_i = chem.deriv.compound_lookup[&particles[*i].compound].mass_kg;
                 let m_j = chem.deriv.compound_lookup[&particles[*j].compound].mass_kg;
 
+                /*
+                let e_before = m_i * particles[*i].vel.length_squared() +
+                    m_j * particles[*j].vel.length_squared();
+                */
+
                 let dp = (particles[*j].pos - particles[*i].pos).normalize_or_zero();
                 let (v_i, v_j) = elastic_collision_vect(
                     m_i, particles[*i].vel,
@@ -491,6 +497,14 @@ impl SimEvent {
 
                 particles[*i].vel = v_i;
                 particles[*j].vel = v_j;
+
+                /*
+                let e_after = m_i * particles[*i].vel.length_squared() +
+                    m_j * particles[*j].vel.length_squared();
+
+                dbg!((e_after - e_before) / e_before);
+                eprintln!();
+                */
             },
         }
     }
