@@ -3,9 +3,9 @@ use std::{collections::HashMap, hash::Hasher};
 use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
+use egui_simpletabs::metric::{edit_metric_f64, to_metric_prefix};
 use rand::prelude::Distribution;
 use sim::*;
-use egui_simpletabs::metric::{edit_metric_f64, to_metric_prefix};
 
 mod query_accel;
 mod sim;
@@ -306,7 +306,8 @@ impl ChemToyApp {
         }
         */
 
-        let chem = chemtoy_deduct::load_builtin();
+        let mut chem = chemtoy_deduct::load_builtin();
+        add_subscripts(&mut chem);
 
         let draw_compound = chem.deriv.compound_lookup.keys().cloned().next().unwrap();
 
@@ -373,7 +374,10 @@ impl ChemToyApp {
                     single_step |= ui.button("Single step").clicked();
                     ui.checkbox(&mut self.sim_cfg.fill_timestep, "Fill timestep");
 
-                    ui.label(egui_simpletabs::metric::to_metric_prefix(self.last_time_step, "s"));
+                    ui.label(egui_simpletabs::metric::to_metric_prefix(
+                        self.last_time_step,
+                        "s",
+                    ));
                 });
 
                 ui.group(|ui| {
@@ -439,7 +443,10 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.max_dt_exp).speed(1e-2));
                         ui.label(")");
 
-                        ui.label(format!(" = {}", to_metric_prefix(self.sim_cfg.max_dt(), "s")));
+                        ui.label(format!(
+                            " = {}",
+                            to_metric_prefix(self.sim_cfg.max_dt(), "s")
+                        ));
                     });
 
                     ui.horizontal(|ui| {
@@ -498,9 +505,11 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.scale_exp).speed(1e-2));
                         ui.label(")");
 
-                        ui.label(format!("1 ui unit = {}", to_metric_prefix(self.sim_cfg.meters_per_unit(), "m")));
+                        ui.label(format!(
+                            "1 ui unit = {}",
+                            to_metric_prefix(self.sim_cfg.meters_per_unit(), "m")
+                        ));
                     });
-
 
                     /*
                     ui.horizontal(|ui| {
@@ -573,8 +582,17 @@ impl ChemToyApp {
                         }
                     }
 
-                    ui.label(format!("Average velocity: {}", to_metric_prefix(average_velocity(&self.sim, &self.chem, &self.sim_cfg), "m/s")));
-                    ui.label(format!("Average kinetic energy: {}", to_metric_prefix(avg_ke / MOL, "J/mol")));
+                    ui.label(format!(
+                        "Average velocity: {}",
+                        to_metric_prefix(
+                            average_velocity(&self.sim, &self.chem, &self.sim_cfg),
+                            "m/s"
+                        )
+                    ));
+                    ui.label(format!(
+                        "Average kinetic energy: {}",
+                        to_metric_prefix(avg_ke / MOL, "J/mol")
+                    ));
                 })
             });
         });
@@ -612,11 +630,17 @@ impl ChemToyApp {
                     if let Some(interact_pos) = resp.interact_pointer_pos() {
                         if resp.clicked() || resp.dragged() {
                             let pos = interact_pos - rect.min.to_vec2();
-                            if self.sim.area_is_clear(&self.chem, &self.sim_cfg, pos.to_sim(&self.sim_cfg)) {
+                            if self.sim.area_is_clear(
+                                &self.chem,
+                                &self.sim_cfg,
+                                pos.to_sim(&self.sim_cfg),
+                            ) {
                                 self.sim.particles.push(Particle {
                                     compound: self.selected_compound.clone(),
                                     pos: pos.to_sim(&self.sim_cfg),
-                                    vel: resp.drag_delta().to_sim(&self.sim_cfg) / self.sim_cfg.max_dt() / 10.0,
+                                    vel: resp.drag_delta().to_sim(&self.sim_cfg)
+                                        / self.sim_cfg.max_dt()
+                                        / 10.0,
                                     is_stationary: self.draw_stationary,
                                 });
                             }
@@ -639,8 +663,16 @@ impl ChemToyApp {
     }
 }
 
-fn jittered_grid(sim: &mut Sim, cfg: &SimConfig, chem: &ChemicalWorld, compound: &CompoundId, density: f64) {
-    let radius = chem.deriv.compound_lookup[compound].transport.radius_meters();
+fn jittered_grid(
+    sim: &mut Sim,
+    cfg: &SimConfig,
+    chem: &ChemicalWorld,
+    compound: &CompoundId,
+    density: f64,
+) {
+    let radius = chem.deriv.compound_lookup[compound]
+        .transport
+        .radius_meters();
     let margin = radius * 2.0 / density;
     let spacing = margin * 2.0;
     let total_width = radius + spacing;
@@ -812,5 +844,41 @@ impl ToSimCoords for egui::Vec2 {
     fn to_sim(self, cfg: &SimConfig) -> glam::DVec2 {
         let p = self * cfg.meters_per_unit() as f32;
         glam::DVec2::new(p.x as _, p.y as _)
+    }
+}
+
+fn add_subscript(c: char) -> char {
+    match c {
+        '1' => '₁',
+        '2' => '₂',
+        '3' => '₃',
+        '4' => '₄',
+        '5' => '₅',
+        '6' => '₆',
+        '7' => '₇',
+        '8' => '₈',
+        '9' => '₉',
+        '0' => '₀',
+        _ => c,
+    }
+}
+
+pub fn add_subscripts(chem: &mut ChemicalWorld) {
+    for spec in &mut chem.laws.species {
+        spec.label = spec
+            .label
+            .chars()
+            .map(add_subscript)
+            .collect::<String>()
+            .into();
+    }
+
+    for spec in chem.deriv.compound_lookup.values_mut() {
+        spec.label = spec
+            .label
+            .chars()
+            .map(add_subscript)
+            .collect::<String>()
+            .into();
     }
 }
