@@ -462,10 +462,12 @@ impl ChemToyApp {
                         ui.add(DragValue::new(&mut self.sim_cfg.speed_limit).speed(1e-2));
                     });
                     */
+                    /*
                     ui.horizontal(|ui| {
                         ui.label("Temperature: ");
                         ui.add(edit_metric_f64(&mut self.sim_cfg.temperature, "K"));
                     });
+                    */
 
                     /*
                     ui.horizontal(|ui| {
@@ -557,7 +559,7 @@ impl ChemToyApp {
                 });
 
                 ui.group(|ui| {
-                    ui.heading("Macroscopic");
+                    ui.heading("Macroscopic (2D)");
                     let avg_ke = average_kinetic_energy(&self.sim, &self.chem, &self.sim_cfg);
                     let mut temp = avg_ke / BOLTZMANN;
                     let old_temp = temp;
@@ -571,8 +573,8 @@ impl ChemToyApp {
                         }
                     }
 
-                    ui.label(format!("Average velocity: {:.02} m/s", average_velocity(&self.sim, &self.chem, &self.sim_cfg)));
-                    ui.label(format!("Average kinetic energy: {:.02} kJ/mol", avg_ke * MOL / 1000.0));
+                    ui.label(format!("Average velocity: {}", to_metric_prefix(average_velocity(&self.sim, &self.chem, &self.sim_cfg), "m/s")));
+                    ui.label(format!("Average kinetic energy: {}", to_metric_prefix(avg_ke / MOL, "J/mol")));
                 })
             });
         });
@@ -762,7 +764,6 @@ fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f
 
     accum / sim.particles.len() as f64 / 2.0
 }
-
 
 fn average_velocity(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {

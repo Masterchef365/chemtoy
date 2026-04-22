@@ -26,10 +26,10 @@ pub struct SimConfig {
     //pub max_collision_time: f64,
     pub fill_timestep: bool,
     pub gravity: f64,
-    pub speed_limit: f64,
-    pub temperature: f64,
+    //pub speed_limit: f64,
+    //pub temperature: f64,
 
-    pub coulomb_softening: f64,
+    //pub coulomb_softening: f64,
     pub coulomb_k: f64,
     pub vanderwaals_mag: f64,
 
@@ -90,7 +90,6 @@ impl Sim {
             if !dt_too_large {
                 action.apply(&mut self.particles);
             }
-            dbg!(dt_too_large);
 
             Some(dt)
         } else {
@@ -377,13 +376,13 @@ impl Default for SimConfig {
         let dt_exp = -13.0;
         Self {
             max_iters: 1000,
-            coulomb_softening: 0.1,
+            //coulomb_softening: 0.1,
             dimensions: DVec2::new(500., 500.) * 10_f64.powf(scale_exp),
             //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
-            speed_limit: 500.0,
-            temperature: 100., // Arbitrary
+            //speed_limit: 500.0,
+            //temperature: 100., // Arbitrary
             coulomb_k: 1e3,
             vanderwaals_mag: 0.0,
             max_dt_exp: dt_exp,
@@ -447,9 +446,6 @@ fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) 
         }
     }
 
-    dbg!(soonest_time);
-    dbg!(&event);
-    eprintln!();
     event.map(|act| (soonest_time, act))
 }
 
