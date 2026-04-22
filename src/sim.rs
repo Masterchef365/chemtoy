@@ -80,6 +80,8 @@ impl Sim {
             let dt_too_large = dt > cfg.max_dt();
             if dt_too_large {
                 dt = dt.min(cfg.max_dt());
+            } else {
+                dt = 0.99 * dt;
             }
 
             // Integrate position
@@ -112,12 +114,15 @@ fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2, pos_diff: DVec
     assert!(m1 > 0.0);
     assert!(m2 > 0.0);
 
-    let p1 = m1 * v1;
-    let p2 = m2 * v2;
+    let rvel = v2 - v1;
+    let mtot = m1 + m2;
 
-    let i = (p2 - p1).project_onto_normalized(pos_diff);
+    let v2i = rvel.project_onto_normalized(pos_diff);
 
-    (v1 + i / m1, v2 - i / m2)
+    let v1f = 2.0 * m2 * v2i / mtot;
+    let v2f = (m2 - m1) * v2i / mtot;
+
+    (v1f + v1, v2f + v1)
 }
 
 fn reflect(v1: DVec2, v2: DVec2) -> DVec2 {
