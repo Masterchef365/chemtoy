@@ -1,11 +1,6 @@
-use std::cmp::Reverse;
-
-use crate::query_accel::QueryAccelerator;
 use crate::MOL;
-use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Synthesis, SynthesisOutputs};
+use chemtoy_deduct::{ChemicalWorld, CompoundId, Synthesis, SynthesisOutputs};
 use glam::DVec2;
-use rand::seq::SliceRandom;
-use rand::Rng;
 
 pub struct Sim {
     pub particles: Vec<Particle>,
@@ -104,7 +99,7 @@ impl Sim {
 
     /// Returns true if a particle can be placed here
     /// TODO: slow and bad but sufficient!
-    pub fn area_is_clear(&mut self, chem: &ChemicalWorld, cfg: &SimConfig, pos: DVec2) -> bool {
+    pub fn area_is_clear(&mut self, chem: &ChemicalWorld, _cfg: &SimConfig, pos: DVec2) -> bool {
         let thresh_sq = (max_radius_meters(chem) * 2.0).powi(2);
         self.particles
             .iter()
@@ -350,7 +345,8 @@ fn react_particles(
     let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
     let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
 
-    let ke_init = (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
+    let ke_init =
+        (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
 
     let delta_g = synth.activation_energy.delta_g / MOL;
 
@@ -386,10 +382,8 @@ fn react_particles(
             };
 
             let dp = (particles[j].pos - particles[i].pos).normalize_or_zero();
-            let (vel_k, vel_l) = elastic_collision_vect(
-                m_i, particles[i].vel, 
-                m_j, particles[j].vel, 
-                dp);
+            let (vel_k, vel_l) =
+                elastic_collision_vect(m_i, particles[i].vel, m_j, particles[j].vel, dp);
 
             // Pre-push the first particle so we can re-use smart_insert_particle
             particles.push(Particle {

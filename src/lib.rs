@@ -280,7 +280,6 @@ fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {
             ui.strong("Diameter");
             ui.label(to_metric_prefix(transport.radius_meters(), "m"));
             ui.end_row();
-
         })
         .response
 }

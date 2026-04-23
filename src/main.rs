@@ -1,9 +1,12 @@
 use std::{collections::HashMap, hash::Hasher};
 
 use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
-use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
-use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
-use egui_simpletabs::{metric::{edit_metric_f64, to_metric_prefix}, tabs::TabWidgetExt};
+use chemtoy_deduct::{ChemicalWorld, CompoundId, Derivations};
+use egui::{Color32, DragValue, Rect, Stroke, Ui, Vec2};
+use egui_simpletabs::{
+    metric::{edit_metric_f64, to_metric_prefix},
+    tabs::TabWidgetExt,
+};
 use rand::prelude::Distribution;
 use sim::*;
 
@@ -122,7 +125,7 @@ impl Default for SaveData {
 }
 
 impl ChemToyApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         /*
         let save_data = cc
             .storage
@@ -779,9 +782,8 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
     });
 }
 
-
 /// Returns ke in joules
-fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
+fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, _cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {
         return 0.0;
     }
@@ -799,7 +801,7 @@ fn average_kinetic_energy(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f
     accum / sim.particles.len() as f64 / 2.0
 }
 
-fn average_velocity(sim: &Sim, chem: &ChemicalWorld, cfg: &SimConfig) -> f64 {
+fn average_velocity(sim: &Sim, _chem: &ChemicalWorld, _cfg: &SimConfig) -> f64 {
     if sim.particles.is_empty() {
         return 0.0;
     }
