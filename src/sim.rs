@@ -266,7 +266,8 @@ impl SimEvent {
                 if let Some(delta_e) = react_particles(particles, *i, *j, chem, cfg) {
                     adjust_global_energy(particles, chem, delta_e);
                 } else {
-                    scatter_particles(particles, *i, *j, chem);
+                    decompose_i_or_scatter(particles, *i, *j, chem, cfg);
+                    //scatter_particles(particles, *i, *j, chem);
                 }
             }
         }
@@ -324,13 +325,15 @@ fn scatter_particles(particles: &mut [Particle], i: usize, j: usize, chem: &Chem
     particles[j].vel = v_j;
 }
 
-fn decompose_particle(
+fn decompose_i_or_scatter(
     particles: &mut Vec<Particle>,
     i: usize,
     j: usize,
     chem: &ChemicalWorld,
     cfg: &SimConfig,
 ) -> Option<f64> {
+    scatter_particles(particles, i, j, chem);
+
     let synth = chem
         .deriv
         .decompositions
@@ -344,10 +347,7 @@ fn decompose_particle(
     let ke_init =
         (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
 
-    // Note: This is what we want, regardless
-    scatter_particles(particles, i, j, chem);
-
-    if ke_init * MOL < decomp.activation_energy.e_a {
+    if dbg!(ke_init * MOL < decomp.activation_energy.e_a) {
         return None;
     }
 
@@ -552,8 +552,9 @@ fn smart_insert_particle(
             let dist = other_particle.pos.distance(proposed_pos);
             let total_radii = radius + other_radius;
             if dist <= total_radii {
-                proposed_pos +=
-                    (proposed_pos - other_particle.pos).normalize_or_zero() * total_radii;
+                let n = (proposed_pos - other_particle.pos).normalize_or_zero();
+                let r = total_radii * (1.0 + cfg.collision_margin);
+                proposed_pos += n * r;
                 continue 'proposals;
             }
         }
