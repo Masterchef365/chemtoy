@@ -41,11 +41,11 @@ pub struct ActivationEnergy {
     #[serde(rename = "n")]
     pub n: f64,
 
-    /// kJ/mol
+    /// J/mol
     #[serde(rename = "Ea")]
     pub e_a: f64,
 
-    /// kJ/mol
+    /// J/mol
     #[serde(rename = "delta_g")]
     pub delta_g: f64,
 }

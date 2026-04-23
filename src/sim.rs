@@ -1,7 +1,8 @@
 use std::cmp::Reverse;
 
 use crate::query_accel::QueryAccelerator;
-use chemtoy_deduct::{ChemicalWorld, CompoundId};
+use crate::MOL;
+use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Synthesis, SynthesisOutputs};
 use glam::DVec2;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -92,7 +93,7 @@ impl Sim {
             }
 
             if !dt_too_large {
-                action.apply(&mut self.particles, chem);
+                action.apply(&mut self.particles, chem, cfg);
             }
 
             Some(dt)
@@ -112,7 +113,13 @@ impl Sim {
 }
 
 /// pos_diff = P2-P1
-fn elastic_collision_vect(m1: f64, v1: DVec2, m2: f64, v2: DVec2, pos_diff: DVec2) -> (DVec2, DVec2) {
+fn elastic_collision_vect(
+    m1: f64,
+    v1: DVec2,
+    m2: f64,
+    v2: DVec2,
+    pos_diff: DVec2,
+) -> (DVec2, DVec2) {
     assert!(m1 > 0.0);
     assert!(m2 > 0.0);
 
@@ -183,17 +190,15 @@ fn max_radius_meters(chem: &ChemicalWorld) -> f64 {
 
 #[derive(Debug)]
 enum SimEvent {
-    WallCollision {
-        particle: usize,
-        normal: usize,
-    },
-    ParticleCollision {
-        part_a: usize,
-        part_b: usize,
-    }
+    WallCollision { particle: usize, normal: usize },
+    ParticleCollision { part_a: usize, part_b: usize },
 }
 
-fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) -> Option<(f64, SimEvent)> {
+fn soonest_event(
+    particles: &[Particle],
+    cfg: &SimConfig,
+    chem: &ChemicalWorld,
+) -> Option<(f64, SimEvent)> {
     let mut soonest_time = f64::MAX;
     let mut event = None;
 
@@ -216,24 +221,34 @@ fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) 
 
             if event_time > 0.0 && event_time < soonest_time {
                 soonest_time = event_time;
-                event = Some(SimEvent::WallCollision { particle: i, normal: dim })
+                event = Some(SimEvent::WallCollision {
+                    particle: i,
+                    normal: dim,
+                })
             }
         }
     }
 
     // Particle collisions
     for i in 0..particles.len() {
-        let r_i = &chem.deriv.compound_lookup[&particles[i].compound].transport.radius_meters();
+        let r_i = &chem.deriv.compound_lookup[&particles[i].compound]
+            .transport
+            .radius_meters();
 
         for j in i + 1..particles.len() {
             let rel_pos = particles[j].pos - particles[i].pos;
             let rel_vel = particles[j].vel - particles[i].vel;
-            let r_j = &chem.deriv.compound_lookup[&particles[j].compound].transport.radius_meters();
+            let r_j = &chem.deriv.compound_lookup[&particles[j].compound]
+                .transport
+                .radius_meters();
 
             if let Some(event_time) = time_of_intersection_particles(rel_pos, rel_vel, r_i + r_j) {
                 if event_time > 0.0 && event_time < soonest_time {
                     soonest_time = event_time;
-                    event = Some(SimEvent::ParticleCollision { part_a: i, part_b: j });
+                    event = Some(SimEvent::ParticleCollision {
+                        part_a: i,
+                        part_b: j,
+                    });
                 }
             }
         }
@@ -243,16 +258,21 @@ fn soonest_event(particles: &[Particle], cfg: &SimConfig, chem: &ChemicalWorld) 
 }
 
 impl SimEvent {
-    pub fn apply(&self, particles: &mut [Particle], chem: &ChemicalWorld) {
+    pub fn apply(&self, particles: &mut Vec<Particle>, chem: &ChemicalWorld, cfg: &SimConfig) {
         match self {
             Self::WallCollision { particle, normal } => {
                 particles[*particle].vel[*normal] *= -1.0;
-            },
-            Self::ParticleCollision { part_a: i, part_b: j } => {
-                if !react_particles(particles, *i, *j, chem) {
+            }
+            Self::ParticleCollision {
+                part_a: i,
+                part_b: j,
+            } => {
+                if let Some(delta_e) = react_particles(particles, *i, *j, chem, cfg) {
+                    adjust_global_energy(particles, chem, delta_e);
+                } else {
                     scatter_particles(particles, *i, *j, chem);
                 }
-            },
+            }
         }
     }
 }
@@ -302,16 +322,178 @@ fn scatter_particles(particles: &mut [Particle], i: usize, j: usize, chem: &Chem
     let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
 
     let dp = (particles[j].pos - particles[i].pos).normalize_or_zero();
-    let (v_i, v_j) = elastic_collision_vect(
-        m_i, particles[i].vel,
-        m_j, particles[j].vel,
-        dp,
-    );
+    let (v_i, v_j) = elastic_collision_vect(m_i, particles[i].vel, m_j, particles[j].vel, dp);
 
     particles[i].vel = v_i;
     particles[j].vel = v_j;
 }
 
-fn react_particles(particles: &mut [Particle], i: usize, j: usize, chem: &ChemicalWorld) -> bool {
-    false
+/// Returns Some(delta E) if a reaction occured
+fn react_particles(
+    particles: &mut Vec<Particle>,
+    i: usize,
+    j: usize,
+    chem: &ChemicalWorld,
+    cfg: &SimConfig,
+) -> Option<f64> {
+    let synth = &chem
+        .deriv
+        .synthesis
+        .get(&(particles[i].compound.clone(), particles[j].compound.clone()))?;
+
+    match &synth.products {
+        SynthesisOutputs::Single(product) => {
+            if !can_fuse_particles(particles, i, j, product.clone(), &synth, chem) {
+                return None;
+            }
+
+            let midpt = (particles[i].pos + particles[j].pos) / 2.0;
+
+            let Some(new_pos) =
+                smart_insert_particle(particles, product.clone(), chem, cfg, midpt, &[i, j])
+            else {
+                return None;
+            };
+
+            let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
+            let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
+
+            let ke_init = (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
+
+            let vel = inelastic_collision(m_i, particles[i].vel, m_j, particles[j].vel);
+
+            let ke_final = (m_i + m_j) * vel.length_squared() / 2.0;
+
+            particles.swap_remove(i);
+            particles.swap_remove(j);
+            particles.push(Particle {
+                compound: product.clone(),
+                pos: new_pos,
+                vel,
+                is_stationary: false,
+            });
+
+            let delta_g = synth.activation_energy.delta_g / MOL;
+
+            Some(ke_final - ke_init - delta_g)
+        }
+        SynthesisOutputs::Exchange(k, l) => {
+            /*
+            let (k_vel, l_vel, delta_e) = exchange_reaction(particles, i, j, k.clone(), l.clone(), &synth, chem)?;
+
+            particles[i].vel = k_vel;
+            particles[i].vel = k_vel;
+
+            Some(delta_e)
+            */
+            todo!()
+        }
+    }
+}
+
+// Returns Some(motion_vector, delta E) if the particles can be fused, where delta E
+// is the amount of energy lost to the environment
+fn can_fuse_particles(
+    particles: &mut Vec<Particle>,
+    i: usize,
+    j: usize,
+    product: CompoundId,
+    synth: &Synthesis,
+    chem: &ChemicalWorld,
+) -> bool {
+    let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
+    let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
+    //let cmpd_prod = &chem.deriv.compound_lookup[&product];
+
+    let ke_i = cmpd_i.mass_kg * particles[i].vel.length_squared() / 2.0;
+    let ke_j = cmpd_j.mass_kg * particles[j].vel.length_squared() / 2.0;
+
+    let initial_ke = ke_i + ke_j;
+
+    let e_a_per_particle = synth.activation_energy.e_a / MOL;
+    //let gibbs_per_particle = synth.activation_energy.delta_g / MOL;
+
+    initial_ke >= e_a_per_particle
+}
+
+// Returns Some(k_vel, l_vel, delta E) if the particles can be reacted, where delta E
+// is the amount of energy lost to the environment
+fn exchange_reaction(
+    particles: &mut [Particle],
+    i: usize,
+    j: usize,
+    k: CompoundId,
+    l: CompoundId,
+    synth: &Synthesis,
+    chem: &ChemicalWorld,
+) -> Option<(DVec2, DVec2, f64)> {
+    None
+}
+
+fn inelastic_collision(m1: f64, v1: DVec2, m2: f64, v2: DVec2) -> DVec2 {
+    (m1 * v1 + m2 * v2) / (m1 + m2)
+}
+
+fn adjust_global_energy(particles: &mut [Particle], chem: &ChemicalWorld, delta_e: f64) {
+    let total_ke = particles
+        .iter()
+        .map(|part| chem.deriv.compound_lookup[&part.compound].mass_kg * part.vel.length_squared())
+        .sum::<f64>()
+        / 2.0;
+
+    if total_ke + delta_e <= 0.0 {
+        return;
+    }
+
+    let vel_frac = ((total_ke + delta_e) / total_ke).sqrt();
+
+    for part in particles {
+        part.vel *= vel_frac;
+    }
+}
+
+/// Returns a position for the new particle if there is one, preferring positions close to origin
+fn smart_insert_particle(
+    particles: &mut Vec<Particle>,
+    cmpd: CompoundId,
+    chem: &ChemicalWorld,
+    cfg: &SimConfig,
+    mut proposed_pos: DVec2,
+    mask: &[usize],
+) -> Option<DVec2> {
+    let radius = chem.deriv.compound_lookup[&cmpd].transport.radius_meters();
+
+    if particles.is_empty() {
+        return Some(proposed_pos);
+    }
+
+    const N_RETRIES: usize = 3;
+
+    'proposals: for _ in 0..N_RETRIES {
+        // Stay within boundaries
+        proposed_pos = proposed_pos.clamp(DVec2::splat(radius), cfg.dimensions - radius);
+
+        // Move away from overlapping particles
+        'particles: for (idx, other_particle) in particles.iter_mut().enumerate() {
+            if mask.contains(&idx) {
+                continue 'particles;
+            }
+
+            let other_radius = chem.deriv.compound_lookup[&other_particle.compound]
+                .transport
+                .radius_meters();
+
+            let dist = other_particle.pos.distance(proposed_pos);
+            let total_radii = radius + other_radius;
+            if dist <= total_radii {
+                proposed_pos +=
+                    (proposed_pos - other_particle.pos).normalize_or_zero() * total_radii;
+                continue 'proposals;
+            }
+        }
+
+        return Some(proposed_pos);
+    }
+
+    None
 }
