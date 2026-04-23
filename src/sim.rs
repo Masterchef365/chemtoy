@@ -396,7 +396,7 @@ fn decompose_i_or_scatter(
 
     particles.swap_remove(i);
 
-    Some(-decomp.activation_energy.delta_g)
+    Some(-decomp.activation_energy.delta_g / MOL)
 }
 
 /// Returns Some(delta E) if a reaction occured
@@ -571,7 +571,7 @@ fn smart_insert_particle(
             let dist = other_particle.pos.distance(proposed_pos);
             let total_radii = radius + other_radius;
             if dist <= total_radii {
-                let n = dbg!(proposed_pos - other_particle.pos).normalize_or_zero();
+                let n = (proposed_pos - other_particle.pos).normalize_or_zero();
                 let r = total_radii * (1.0 + cfg.collision_margin);
                 proposed_pos += n * r;
                 continue 'proposals;
