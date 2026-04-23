@@ -364,8 +364,8 @@ fn react_particles(
 
             let ke_final = (m_i + m_j) * vel.length_squared() / 2.0;
 
-            particles.swap_remove(i);
             particles.swap_remove(j);
+            particles.swap_remove(i);
             particles.push(Particle {
                 compound: product.clone(),
                 pos: new_pos,
@@ -386,7 +386,7 @@ fn react_particles(
 
             Some(delta_e)
             */
-            todo!()
+            None
         }
     }
 }
