@@ -204,8 +204,8 @@ fn draw_decompositions(
                 }
             }
         });
-        ui.label(decomp.activation_energy.e_a.to_string());
-        ui.label(decomp.activation_energy.delta_g.to_string());
+        ui.label(to_metric_prefix(decomp.activation_energy.e_a * 1000.0, "J/mol"));
+        ui.label(to_metric_prefix(decomp.activation_energy.delta_g * 1000.0, "J/mol"));
         ui.end_row();
     }
 }
@@ -232,8 +232,8 @@ fn draw_synthesis(
             selectable_cmpd(ui, chem, other, selected_cmpd);
         }
     });
-    ui.label(res.activation_energy.e_a.to_string());
-    ui.label(res.activation_energy.delta_g.to_string());
+    ui.label(to_metric_prefix(res.activation_energy.e_a * 1000.0, "J/mol"));
+    ui.label(to_metric_prefix(res.activation_energy.delta_g * 1000.0, "J/mol"));
     ui.end_row();
 }
 
@@ -241,8 +241,8 @@ fn reaction_header(ui: &mut Ui) {
     ui.strong("Reactants");
     ui.label(""); // Arrow
     ui.strong("Products");
-    ui.strong("Activation energy (kJ/mol)");
-    ui.strong("Gibbs free energy (kJ/mol)");
+    ui.strong("Activation energy");
+    ui.strong("Gibbs free energy");
 }
 
 fn component_ui(ui: &mut Ui, cmpd: &Compound) -> egui::Response {

@@ -37,10 +37,15 @@ pub struct Reaction {
 pub struct ActivationEnergy {
     #[serde(rename = "A")]
     pub a: f64,
+
     #[serde(rename = "n")]
     pub n: f64,
+
+    /// kJ/mol
     #[serde(rename = "Ea")]
     pub e_a: f64,
+
+    /// kJ/mol
     #[serde(rename = "delta_g")]
     pub delta_g: f64,
 }
