@@ -39,6 +39,8 @@ pub struct SimConfig {
     pub max_dt_exp: f64,
     /// Maximum number of iterations before bailout
     pub max_iters: usize,
+    /// Move within this percentage tolerance of the actual predicted position for collisions
+    pub collision_margin: f64,
 }
 
 impl Sim {
@@ -81,7 +83,7 @@ impl Sim {
             if dt_too_large {
                 dt = dt.min(cfg.max_dt());
             } else {
-                dt = 0.99 * dt;
+                dt = dt * (1.0 - cfg.collision_margin);
             }
 
             // Integrate position
@@ -393,6 +395,7 @@ impl Default for SimConfig {
             vanderwaals_mag: 0.0,
             max_dt_exp: dt_exp,
             scale_exp,
+            collision_margin: 0.01,
         }
     }
 }
