@@ -341,31 +341,31 @@ fn react_particles(
         .synthesis
         .get(&(particles[i].compound.clone(), particles[j].compound.clone()))?;
 
+    if !exceeds_rxn_barrier(particles, i, j, &synth, chem) {
+        return None;
+    }
+
+    let midpt = (particles[i].pos + particles[j].pos) / 2.0;
+
+    let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
+    let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
+
+    let ke_init = (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
+
+    let delta_g = synth.activation_energy.delta_g / MOL;
+
     match &synth.products {
         SynthesisOutputs::Single(product) => {
-            if !exceeds_rxn_barrier(particles, i, j, &synth, chem) {
-                return None;
-            }
-
-            let midpt = (particles[i].pos + particles[j].pos) / 2.0;
-
             let Some(new_pos) =
                 smart_insert_particle(particles, product.clone(), chem, cfg, midpt, &[i, j])
             else {
                 return None;
             };
 
-            let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
-            let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
-
-            let ke_init = (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
-
             let vel = inelastic_collision(m_i, particles[i].vel, m_j, particles[j].vel);
 
             let ke_final = (m_i + m_j) * vel.length_squared() / 2.0;
 
-            particles.swap_remove(j);
-            particles.swap_remove(i);
             particles.push(Particle {
                 compound: product.clone(),
                 pos: new_pos,
@@ -373,20 +373,52 @@ fn react_particles(
                 is_stationary: false,
             });
 
-            let delta_g = synth.activation_energy.delta_g / MOL;
+            particles.swap_remove(j);
+            particles.swap_remove(i);
 
             Some(ke_final - ke_init - delta_g)
         }
         SynthesisOutputs::Exchange(k, l) => {
-            /*
-            let (k_vel, l_vel, delta_e) = exchange_reaction(particles, i, j, k.clone(), l.clone(), &synth, chem)?;
+            let Some(new_pos_k) =
+                smart_insert_particle(particles, k.clone(), chem, cfg, midpt, &[i, j])
+            else {
+                return None;
+            };
 
-            particles[i].vel = k_vel;
-            particles[i].vel = k_vel;
+            let dp = (particles[j].pos - particles[i].pos).normalize_or_zero();
+            let (vel_k, vel_l) = elastic_collision_vect(
+                m_i, particles[i].vel, 
+                m_j, particles[j].vel, 
+                dp);
 
-            Some(delta_e)
-            */
-            None
+            // Pre-push the first particle so we can re-use smart_insert_particle
+            particles.push(Particle {
+                compound: k.clone(),
+                pos: new_pos_k,
+                vel: vel_k,
+                is_stationary: false,
+            });
+
+            // Now check for a second position nearby
+            let Some(new_pos_l) =
+                smart_insert_particle(particles, l.clone(), chem, cfg, midpt, &[i, j])
+            else {
+                particles.pop();
+                return None;
+            };
+
+            // Pre-push the first particle so we can re-use smart_insert_particle
+            particles.push(Particle {
+                compound: l.clone(),
+                pos: new_pos_l,
+                vel: vel_l,
+                is_stationary: false,
+            });
+
+            particles.swap_remove(j);
+            particles.swap_remove(i);
+
+            Some(delta_g)
         }
     }
 }
