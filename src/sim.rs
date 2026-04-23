@@ -343,7 +343,7 @@ fn react_particles(
 
     match &synth.products {
         SynthesisOutputs::Single(product) => {
-            if !can_fuse_particles(particles, i, j, product.clone(), &synth, chem) {
+            if !exceeds_rxn_barrier(particles, i, j, &synth, chem) {
                 return None;
             }
 
@@ -393,17 +393,15 @@ fn react_particles(
 
 // Returns Some(motion_vector, delta E) if the particles can be fused, where delta E
 // is the amount of energy lost to the environment
-fn can_fuse_particles(
+fn exceeds_rxn_barrier(
     particles: &mut Vec<Particle>,
     i: usize,
     j: usize,
-    product: CompoundId,
     synth: &Synthesis,
     chem: &ChemicalWorld,
 ) -> bool {
     let cmpd_i = &chem.deriv.compound_lookup[&particles[i].compound];
     let cmpd_j = &chem.deriv.compound_lookup[&particles[j].compound];
-    //let cmpd_prod = &chem.deriv.compound_lookup[&product];
 
     let ke_i = cmpd_i.mass_kg * particles[i].vel.length_squared() / 2.0;
     let ke_j = cmpd_j.mass_kg * particles[j].vel.length_squared() / 2.0;
@@ -411,23 +409,8 @@ fn can_fuse_particles(
     let initial_ke = ke_i + ke_j;
 
     let e_a_per_particle = synth.activation_energy.e_a / MOL;
-    //let gibbs_per_particle = synth.activation_energy.delta_g / MOL;
 
     initial_ke >= e_a_per_particle
-}
-
-// Returns Some(k_vel, l_vel, delta E) if the particles can be reacted, where delta E
-// is the amount of energy lost to the environment
-fn exchange_reaction(
-    particles: &mut [Particle],
-    i: usize,
-    j: usize,
-    k: CompoundId,
-    l: CompoundId,
-    synth: &Synthesis,
-    chem: &ChemicalWorld,
-) -> Option<(DVec2, DVec2, f64)> {
-    None
 }
 
 fn inelastic_collision(m1: f64, v1: DVec2, m2: f64, v2: DVec2) -> DVec2 {
