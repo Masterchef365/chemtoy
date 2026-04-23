@@ -1,6 +1,7 @@
 use crate::MOL;
 use chemtoy_deduct::{ChemicalWorld, CompoundId, Synthesis, SynthesisOutputs};
 use glam::DVec2;
+use rand::seq::SliceRandom;
 
 pub struct Sim {
     pub particles: Vec<Particle>,
@@ -321,6 +322,62 @@ fn scatter_particles(particles: &mut [Particle], i: usize, j: usize, chem: &Chem
 
     particles[i].vel = v_i;
     particles[j].vel = v_j;
+}
+
+fn decompose_particle(
+    particles: &mut Vec<Particle>,
+    i: usize,
+    j: usize,
+    chem: &ChemicalWorld,
+    cfg: &SimConfig,
+) -> Option<f64> {
+    let synth = chem
+        .deriv
+        .decompositions
+        .get(&particles[i].compound)?;
+
+    let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
+    let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
+
+    let decomp = synth.choose(&mut rand::thread_rng())?;
+
+    let ke_init =
+        (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
+
+    // Note: This is what we want, regardless
+    scatter_particles(particles, i, j, chem);
+
+    if ke_init * MOL < decomp.activation_energy.e_a {
+        return None;
+    }
+
+    let mut products = decomp.products.iter();
+
+    let first_product = products.next().unwrap();
+    let first_pos = smart_insert_particle(particles, first_product.clone(), chem, cfg, particles[i].pos, &[i])?;
+
+    particles.push(Particle {
+        pos: first_pos,
+        vel: particles[i].vel,
+        compound: first_product.clone(),
+        is_stationary: false,
+    });
+
+    if let Some(second_product) = products.next() {
+        let Some(second_pos) = smart_insert_particle(particles, first_product.clone(), chem, cfg, particles[i].pos, &[]) else {
+            particles.pop();
+            return None;
+        };
+
+        particles.push(Particle {
+            pos: second_pos,
+            vel: particles[i].vel,
+            compound: second_product.clone(),
+            is_stationary: false,
+        });
+    }
+
+    Some(-decomp.activation_energy.delta_g)
 }
 
 /// Returns Some(delta E) if a reaction occured
