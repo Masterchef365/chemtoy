@@ -483,31 +483,9 @@ impl SimEvent {
                 particles[*particle].vel[*normal] *= -1.0;
             },
             Self::ParticleCollision { part_a: i, part_b: j } => {
-                let m_i = chem.deriv.compound_lookup[&particles[*i].compound].mass_kg;
-                let m_j = chem.deriv.compound_lookup[&particles[*j].compound].mass_kg;
-
-                /*
-                let e_before = m_i * particles[*i].vel.length_squared() +
-                    m_j * particles[*j].vel.length_squared();
-                */
-
-                let dp = (particles[*j].pos - particles[*i].pos).normalize_or_zero();
-                let (v_i, v_j) = elastic_collision_vect(
-                    m_i, particles[*i].vel,
-                    m_j, particles[*j].vel,
-                    dp,
-                );
-
-                particles[*i].vel = v_i;
-                particles[*j].vel = v_j;
-
-                /*
-                let e_after = m_i * particles[*i].vel.length_squared() +
-                    m_j * particles[*j].vel.length_squared();
-
-                dbg!((e_after - e_before) / e_before);
-                eprintln!();
-                */
+                if !react_particles(particles, *i, *j, chem) {
+                    scatter_particles(particles, *i, *j, chem);
+                }
             },
         }
     }
@@ -551,4 +529,23 @@ fn time_of_intersection_particles(rel_pos: DVec2, rel_vel: DVec2, sum_radii: f64
     } else {
         Some(t_min)
     }
+}
+
+fn scatter_particles(particles: &mut [Particle], i: usize, j: usize, chem: &ChemicalWorld) {
+    let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
+    let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
+
+    let dp = (particles[j].pos - particles[i].pos).normalize_or_zero();
+    let (v_i, v_j) = elastic_collision_vect(
+        m_i, particles[i].vel,
+        m_j, particles[j].vel,
+        dp,
+    );
+
+    particles[i].vel = v_i;
+    particles[j].vel = v_j;
+}
+
+fn react_particles(particles: &mut [Particle], i: usize, j: usize, chem: &ChemicalWorld) -> bool {
+    false
 }

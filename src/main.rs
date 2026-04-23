@@ -3,7 +3,7 @@ use std::{collections::HashMap, hash::Hasher};
 use chemtoy::{cmpd_label, compound_color, selectable_cmpd};
 use chemtoy_deduct::{ChemicalWorld, Compound, CompoundId, Derivations, Laws};
 use egui::{Color32, DragValue, Pos2, Rect, RichText, Stroke, Ui, Vec2};
-use egui_simpletabs::metric::{edit_metric_f64, to_metric_prefix};
+use egui_simpletabs::{metric::{edit_metric_f64, to_metric_prefix}, tabs::TabWidgetExt};
 use rand::prelude::Distribution;
 use sim::*;
 
@@ -345,8 +345,8 @@ impl eframe::App for ChemToyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("screen").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.screen, Screen::Simulation, "Simulation");
-                ui.selectable_value(&mut self.screen, Screen::ChemBook, "Chem Book");
+                ui.add_tab(&mut self.screen, Screen::Simulation, "Simulation");
+                ui.add_tab(&mut self.screen, Screen::ChemBook, "Chem Book");
             });
         });
 
