@@ -266,7 +266,9 @@ impl SimEvent {
                 if let Some(delta_e) = react_particles(particles, *i, *j, chem, cfg) {
                     adjust_global_energy(particles, chem, delta_e);
                 } else {
-                    decompose_i_or_scatter(particles, *i, *j, chem, cfg);
+                    if let Some(delta_e) = decompose_i_or_scatter(particles, *i, *j, chem, cfg) {
+                        adjust_global_energy(particles, chem, delta_e);
+                    }
                     //scatter_particles(particles, *i, *j, chem);
                 }
             }
@@ -334,10 +336,7 @@ fn decompose_i_or_scatter(
 ) -> Option<f64> {
     scatter_particles(particles, i, j, chem);
 
-    let synth = chem
-        .deriv
-        .decompositions
-        .get(&particles[i].compound)?;
+    let synth = chem.deriv.decompositions.get(&particles[i].compound)?;
 
     let m_i = chem.deriv.compound_lookup[&particles[i].compound].mass_kg;
     let m_j = chem.deriv.compound_lookup[&particles[j].compound].mass_kg;
@@ -347,14 +346,25 @@ fn decompose_i_or_scatter(
     let ke_init =
         (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
 
-    if dbg!(ke_init * MOL < decomp.activation_energy.e_a) {
+    if ke_init * MOL < decomp.activation_energy.e_a {
         return None;
     }
 
     let mut products = decomp.products.iter();
 
+    // Propose a position a short distance from the original, so that smart_insert_particle
+    // can move it as far as needed...
+    let proposed_pos = particles[i].pos + particles[i].vel * cfg.max_dt();
+
     let first_product = products.next().unwrap();
-    let first_pos = smart_insert_particle(particles, first_product.clone(), chem, cfg, particles[i].pos, &[i])?;
+    let first_pos = smart_insert_particle(
+        particles,
+        first_product.clone(),
+        chem,
+        cfg,
+        proposed_pos,
+        &[i],
+    )?;
 
     particles.push(Particle {
         pos: first_pos,
@@ -364,7 +374,14 @@ fn decompose_i_or_scatter(
     });
 
     if let Some(second_product) = products.next() {
-        let Some(second_pos) = smart_insert_particle(particles, first_product.clone(), chem, cfg, particles[i].pos, &[]) else {
+        let Some(second_pos) = smart_insert_particle(
+            particles,
+            second_product.clone(),
+            chem,
+            cfg,
+            proposed_pos,
+            &[],
+        ) else {
             particles.pop();
             return None;
         };
@@ -376,6 +393,8 @@ fn decompose_i_or_scatter(
             is_stationary: false,
         });
     }
+
+    particles.swap_remove(i);
 
     Some(-decomp.activation_energy.delta_g)
 }
@@ -535,7 +554,7 @@ fn smart_insert_particle(
 
     const N_RETRIES: usize = 3;
 
-    'proposals: for _ in 0..N_RETRIES {
+    'proposals: for i in 0..N_RETRIES {
         // Stay within boundaries
         proposed_pos = proposed_pos.clamp(DVec2::splat(radius), cfg.dimensions - radius);
 
@@ -552,7 +571,7 @@ fn smart_insert_particle(
             let dist = other_particle.pos.distance(proposed_pos);
             let total_radii = radius + other_radius;
             if dist <= total_radii {
-                let n = (proposed_pos - other_particle.pos).normalize_or_zero();
+                let n = dbg!(proposed_pos - other_particle.pos).normalize_or_zero();
                 let r = total_radii * (1.0 + cfg.collision_margin);
                 proposed_pos += n * r;
                 continue 'proposals;
