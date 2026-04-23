@@ -204,8 +204,8 @@ fn draw_decompositions(
                 }
             }
         });
-        ui.label(to_metric_prefix(decomp.activation_energy.e_a * 1000.0, "J/mol"));
-        ui.label(to_metric_prefix(decomp.activation_energy.delta_g * 1000.0, "J/mol"));
+        ui.label(to_metric_prefix(decomp.activation_energy.e_a, "J/mol"));
+        ui.label(to_metric_prefix(decomp.activation_energy.delta_g, "J/mol"));
         ui.end_row();
     }
 }
@@ -232,8 +232,8 @@ fn draw_synthesis(
             selectable_cmpd(ui, chem, other, selected_cmpd);
         }
     });
-    ui.label(to_metric_prefix(res.activation_energy.e_a * 1000.0, "J/mol"));
-    ui.label(to_metric_prefix(res.activation_energy.delta_g * 1000.0, "J/mol"));
+    ui.label(to_metric_prefix(res.activation_energy.e_a, "J/mol"));
+    ui.label(to_metric_prefix(res.activation_energy.delta_g, "J/mol"));
     ui.end_row();
 }
 
