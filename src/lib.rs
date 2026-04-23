@@ -141,6 +141,7 @@ pub fn show_compounds(ui: &mut Ui, chem: &ChemicalWorld, selected_cmpd: &mut Com
         ui.strong("Name");
         ui.strong("Charge");
         ui.strong("Mass");
+        ui.strong("Radius");
         ui.end_row();
 
         for (_idx, compound) in chem.laws.species.iter().enumerate() {
