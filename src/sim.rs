@@ -154,7 +154,7 @@ impl Default for SimConfig {
         Self {
             max_iters: 1000,
             //coulomb_softening: 0.1,
-            dimensions: DVec2::new(500., 500.) * 10_f64.powf(scale_exp),
+            dimensions: DVec2::new(2500., 2500.) * 10_f64.powf(scale_exp),
             //max_collision_time: 1e-2,
             fill_timestep: true,
             gravity: 9.8,
