@@ -396,7 +396,7 @@ fn decompose_i_or_scatter(
 
     particles.swap_remove(i);
 
-    Some(-decomp.activation_energy.delta_g / MOL)
+    Some(-decomp.activation_energy.delta_h / MOL)
 }
 
 /// Returns Some(delta E) if a reaction occured
@@ -424,7 +424,7 @@ fn react_particles(
     let ke_init =
         (m_i * particles[i].vel.length_squared() + m_j * particles[j].vel.length_squared()) / 2.0;
 
-    let delta_g = synth.activation_energy.delta_g / MOL;
+    let delta_h = synth.activation_energy.delta_h / MOL;
 
     match &synth.products {
         SynthesisOutputs::Single(product) => {
@@ -448,7 +448,7 @@ fn react_particles(
             particles.swap_remove(j);
             particles.swap_remove(i);
 
-            Some(ke_final - ke_init - delta_g)
+            Some(ke_final - ke_init - delta_h)
         }
         SynthesisOutputs::Exchange(k, l) => {
             let Some(new_pos_k) =
@@ -488,7 +488,7 @@ fn react_particles(
             particles.swap_remove(j);
             particles.swap_remove(i);
 
-            Some(delta_g)
+            Some(delta_h)
         }
     }
 }

@@ -205,6 +205,7 @@ fn draw_decompositions(
             }
         });
         ui.label(to_metric_prefix(decomp.activation_energy.e_a, "J/mol"));
+        ui.label(to_metric_prefix(decomp.activation_energy.delta_h, "J/mol"));
         ui.label(to_metric_prefix(decomp.activation_energy.delta_g, "J/mol"));
         ui.end_row();
     }
@@ -233,6 +234,7 @@ fn draw_synthesis(
         }
     });
     ui.label(to_metric_prefix(res.activation_energy.e_a, "J/mol"));
+    ui.label(to_metric_prefix(res.activation_energy.delta_h, "J/mol"));
     ui.label(to_metric_prefix(res.activation_energy.delta_g, "J/mol"));
     ui.end_row();
 }
@@ -242,6 +244,7 @@ fn reaction_header(ui: &mut Ui) {
     ui.label(""); // Arrow
     ui.strong("Products");
     ui.strong("Activation energy");
+    ui.strong("Enthalpy");
     ui.strong("Gibbs free energy");
 }
 
