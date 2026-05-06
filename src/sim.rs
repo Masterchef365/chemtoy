@@ -7,7 +7,7 @@ pub struct Sim {
     pub particles: Vec<Particle>,
 }
 
-// kJ/K
+// J/K
 pub const BOLTZMANN: f64 = 1.381e-23;
 
 #[derive(Clone, Debug)]
@@ -46,13 +46,16 @@ impl Sim {
     }
 
     /// Steps forward by as much time as possible up to cfg.dt, returning the actual dt if time was advanced. If cfg.fill_timestep is false, acts like single_step().
-    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
+    pub fn step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld, mut event_cb: impl FnMut(&Self, SimEvent)) -> f64 {
         let mut elapsed = 0.0;
         let mut remaining_loops = cfg.max_iters;
         while elapsed < cfg.max_dt() && remaining_loops > 0 {
             remaining_loops -= 1;
 
-            let dt = self.single_step(cfg, chem);
+            let (dt, event) = self.single_step(cfg, chem);
+            if let Some(event) = event {
+                event_cb(self, event);
+            }
             elapsed += dt;
 
             if !cfg.fill_timestep {
@@ -63,18 +66,23 @@ impl Sim {
         elapsed
     }
 
-    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> f64 {
-        let dt = self.apply_next_event(cfg, chem).unwrap_or(cfg.max_dt());
+    pub fn single_step(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> (f64, Option<SimEvent>) {
+        let mut event = None;
+        let mut dt = cfg.max_dt();
+        if let Some((next_dt, next_event)) = self.apply_next_event(cfg, chem) {
+            dt = next_dt;
+            event = Some(next_event);
+        }
 
         // Integrate acceleration due to gravity
         for part in &mut self.particles {
             part.vel.y += cfg.gravity * dt;
         }
 
-        dt
+        (dt, event)
     }
 
-    pub fn apply_next_event(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<f64> {
+    pub fn apply_next_event(&mut self, cfg: &SimConfig, chem: &ChemicalWorld) -> Option<(f64, SimEvent)> {
         if let Some((mut dt, action)) = soonest_event(&self.particles, cfg, chem) {
             let dt_too_large = dt > cfg.max_dt();
             if dt_too_large {
@@ -92,7 +100,7 @@ impl Sim {
                 action.apply(&mut self.particles, chem, cfg);
             }
 
-            Some(dt)
+            Some((dt, action))
         } else {
             None
         }
@@ -185,7 +193,7 @@ fn max_radius_meters(chem: &ChemicalWorld) -> f64 {
 }
 
 #[derive(Debug)]
-enum SimEvent {
+pub enum SimEvent {
     WallCollision { particle: usize, normal: usize },
     ParticleCollision { part_a: usize, part_b: usize },
 }

@@ -101,6 +101,8 @@ pub struct ChemToyApp {
     screen: Screen,
     vis_cfg: VisualizationConfig,
     last_time_step: f64,
+    /// N/m
+    last_pressure_calculation: f64,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -332,6 +334,7 @@ impl ChemToyApp {
             vis_cfg: Default::default(),
             density: 0.5,
             last_time_step: 0.0,
+            last_pressure_calculation: 0.0,
         }
     }
 }
@@ -573,7 +576,7 @@ impl ChemToyApp {
                 ui.group(|ui| {
                     ui.heading("Macroscopic (2D)");
                     let avg_ke = average_kinetic_energy(&self.sim, &self.chem, &self.sim_cfg);
-                    let mut temp = avg_ke / 1000.0 / BOLTZMANN;
+                    let mut temp = avg_ke / BOLTZMANN;
                     let old_temp = temp;
                     ui.add(edit_metric_f64(&mut temp, "K"));
                     if temp != old_temp {
@@ -592,20 +595,31 @@ impl ChemToyApp {
                             "m/s"
                         )
                     ));
+
                     ui.label(format!(
                         "Average kinetic energy: {}",
                         to_metric_prefix(avg_ke * MOL, "J/mol")
                     ));
+
 
                     let mass = total_mass(&self.sim.particles, &self.chem);
 
                     let volume = self.sim_cfg.dimensions.element_product();
                     let density = mass / volume;
 
+                    let supposed_depth = self.sim_cfg.dimensions.length();
+
                     ui.label(format!(
                         "Density: {}",
-                        to_metric_prefix(density, "g/m²")
+                        to_metric_prefix(density / supposed_depth, "g/m³")
                     ));
+
+                    ui.label(format!(
+                        "Pressure: {}",
+                        to_metric_prefix(self.last_pressure_calculation / supposed_depth, "N/m² ≈ Pa")
+                    ));
+
+
                 })
             });
         });
@@ -664,7 +678,17 @@ impl ChemToyApp {
 
         if !self.paused || single_step {
             if self.frame_count % self.slowdown.max(1) == 0 {
-                self.last_time_step = self.sim.step(&self.sim_cfg, &self.chem);
+                let mut total_impulse = 0.0;
+                self.last_time_step = self.sim.step(&self.sim_cfg, &self.chem, |sim, event| {
+                    if let SimEvent::WallCollision { particle, normal } = event {
+                        let particle = &sim.particles[particle];
+                        let mass = self.chem.deriv.compound_lookup[&particle.compound].mass_kg;
+                        let impulse = particle.vel[normal].abs() * mass * 2.0;
+                        total_impulse += impulse;
+                    }
+                });
+                let surface_area = self.sim_cfg.dimensions.element_sum() * 2.0;
+                self.last_pressure_calculation = total_impulse / self.last_time_step / surface_area;
             }
             ctx.request_repaint();
             self.frame_count += 1;
