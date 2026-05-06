@@ -596,6 +596,16 @@ impl ChemToyApp {
                         "Average kinetic energy: {}",
                         to_metric_prefix(avg_ke * MOL, "J/mol")
                     ));
+
+                    let mass = total_mass(&self.sim.particles, &self.chem);
+
+                    let volume = self.sim_cfg.dimensions.element_product();
+                    let density = mass / volume;
+
+                    ui.label(format!(
+                        "Density: {}",
+                        to_metric_prefix(density, "g/m²")
+                    ));
                 })
             });
         });
@@ -779,6 +789,8 @@ fn particle_stats(ui: &mut Ui, sim: &Sim, chem: &ChemicalWorld, selected_cmpd: &
             ui.strong(format!("{percent:.02}%"));
             ui.end_row();
         }
+        ui.strong(format!("Total: {}", sim.particles.len()));
+        ui.end_row();
     });
 }
 
@@ -885,4 +897,10 @@ pub fn add_subscripts(chem: &mut ChemicalWorld) {
             .collect::<String>()
             .into();
     }
+}
+
+fn total_mass(particles: &[Particle], chem: &ChemicalWorld) -> f64 {
+    particles.iter().map(|part| {
+        chem.deriv.compound_lookup[&part.compound].mass_kg * 1000.0
+    }).sum()
 }

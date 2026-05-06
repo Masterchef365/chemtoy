@@ -35,19 +35,30 @@ pub struct Reaction {
 #[derive(Debug)]
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct ActivationEnergy {
+    /// Part of the rate model
     #[serde(rename = "A")]
     pub a: f64,
 
+    /// Part of the rate model
     #[serde(rename = "n")]
     pub n: f64,
 
+    /// Activation energy
     /// J/mol
     #[serde(rename = "Ea")]
     pub e_a: f64,
 
+    /// Gibbs free energy
     /// J/mol
     #[serde(rename = "delta_g")]
     pub delta_g: f64,
+
+    /// Enthalpy
+    /// J/mol
+    #[serde(rename = "delta_h")]
+    pub delta_h: f64,
+
+
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]

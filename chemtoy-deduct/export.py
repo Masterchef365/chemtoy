@@ -53,6 +53,7 @@ for rxn in reactions:
             "reactants": reactants,
             "products": products,
             "delta_g": rxn.get_free_energy_of_reaction(T),
+            "delta_h": rxn.get_enthalpy_of_reaction(T),
             "A": A,
             "n": n,
             "Ea": Ea
